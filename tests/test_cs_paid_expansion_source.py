@@ -88,7 +88,10 @@ class PaidExpansionSourceContracts(unittest.TestCase):
         self.assertIn("ModifyMoney(static_cast<int32>(cost))", handler)
         validator = CPP[CPP.index("bool CanPurchaseProgressionTier("):
                         CPP.index("bool ApplyProgressionTierPurchase(")]
-        self.assertIn("sObjectMgr->GetQuestTemplate(66000u + newTier)", validator)
+        self.assertIn("for (uint8 stage = currentTier + 1; stage <= newTier; ++stage)", validator)
+        self.assertIn("if (stage == 11)", validator)
+        self.assertIn("GetQuestStatus(66000u + stage) != QUEST_STATUS_REWARDED", validator)
+        self.assertIn("sObjectMgr->GetQuestTemplate(66000u + stage)", validator)
         self.assertIn("progressionLimit", validator)
         grant = CPP[CPP.index("bool ApplyProgressionTierPurchase("):
                     CPP.index("std::string GetTierIcon(")]

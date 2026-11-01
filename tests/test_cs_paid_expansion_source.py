@@ -84,7 +84,7 @@ class PaidExpansionSourceContracts(unittest.TestCase):
         self.assertIn("CharacterServicesMoneyPolicy::TryGoldToCopper(gold, false, copper)", method)
         self.assertNotIn("DynamicCost", method)
         price = CPP[CPP.index("bool TryGetProgressionTierCost("):
-                    CPP.index("uint32 GetServiceCost(")]
+                    CPP.index("bool TryGetStandardServiceCost(")]
         self.assertIn("CharacterServicesMoneyPolicy::TryGoldToCopper(gold, true, copper)", price)
         self.assertIn('#include "CharacterServicesMoneyPolicy.h"', CPP)
 
@@ -150,6 +150,30 @@ class PaidExpansionSourceContracts(unittest.TestCase):
         self.assertIn("contact server staff if the balance changed", handler)
         self.assertIn("ExpansionResult::FeatureInactive", handler)
         self.assertIn("ExpansionResult::BlockedByProgressionLimit", handler)
+
+    def test_standard_service_fee_is_checked_before_menu_and_debit(self):
+        self.assertIn('#include "CharacterServicesStandardPricePolicy.h"', CPP)
+        helper = CPP[CPP.index("bool TryGetStandardServiceCost("):
+                     CPP.index("};\n\nvoid AddCharacterServicesScripts()")]
+        self.assertIn("CharacterServicesStandardPricePolicy::TryCost(", helper)
+        self.assertIn("CharacterServices.DynamicCost.Enable", helper)
+        self.assertIn("CharacterServices.Cost.NameChange", helper)
+        self.assertIn("CharacterServices.Cost.AppearanceChange", helper)
+        self.assertIn("CharacterServices.Cost.RaceChange", helper)
+        self.assertIn("CharacterServices.Cost.FactionChange", helper)
+        self.assertNotIn("GetServiceCost(", CPP)
+        menu = CPP[CPP.index("bool OnGossipHello("):
+                   CPP.index("bool OnGossipSelect(")]
+        self.assertEqual(menu.count("TryGetStandardServiceCost(player,"), 4)
+        self.assertEqual(menu.count("standardServiceCopper, false)"), 4)
+        selection = CPP[CPP.index("// Handle standard services (action IDs 1-4)."):
+                        CPP.index("bool IsStandardServiceEnabled(")]
+        self.assertIn("if (!TryGetStandardServiceCost(player, action, cost))", selection)
+        self.assertIn("ModifyMoney(-static_cast<int32>(cost))", selection)
+        self.assertLess(selection.index("TryGetStandardServiceCost("),
+                        selection.index("ModifyMoney("))
+        self.assertLess(selection.index("HasEnoughMoney(cost)"),
+                        selection.index("ModifyMoney("))
 
     def test_standard_upstream_safety_not_removed(self):
         self.assertIn("bool IsStandardServiceEnabled(", CPP)

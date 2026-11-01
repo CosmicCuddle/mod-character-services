@@ -6,21 +6,25 @@ on:
       - 'src/CharacterServices.cpp'
       - 'src/CharacterServicesMoneyPolicy.h'
       - 'src/CharacterServicesGatePolicy.h'
+      - 'src/CharacterServicesStandardPricePolicy.h'
       - 'conf/character_services.conf.dist'
       - 'docs/source-snapshots/**'
       - 'tests/test_cs_paid_expansion_source.py'
       - 'tests/character_services_money_policy.cpp'
       - 'tests/character_services_gate_policy.cpp'
+      - 'tests/character_services_standard_price_policy.cpp'
       - '.github/workflows/character-services-paid-expansion-draft.yml'
   push:
     paths:
       - 'src/CharacterServices.cpp'
       - 'src/CharacterServicesMoneyPolicy.h'
       - 'src/CharacterServicesGatePolicy.h'
+      - 'src/CharacterServicesStandardPricePolicy.h'
       - 'conf/character_services.conf.dist'
       - 'tests/test_cs_paid_expansion_source.py'
       - 'tests/character_services_money_policy.cpp'
       - 'tests/character_services_gate_policy.cpp'
+      - 'tests/character_services_standard_price_policy.cpp'
       - '.github/workflows/character-services-paid-expansion-draft.yml'
 
 permissions:
@@ -54,6 +58,17 @@ jobs:
             for standard in c++17 c++20; do
               output="$(mktemp)"
               "$compiler" -std="$standard" -Wall -Wextra -Werror -pedantic -o "$output" tests/character_services_gate_policy.cpp
+              "$output"
+              rm -f "$output"
+            done
+          done
+      - name: Compile and execute standard-service safe price policy (GCC/Clang C++17/C++20)
+        run: |
+          set -eu
+          for compiler in g++ clang++; do
+            for standard in c++17 c++20; do
+              output="$(mktemp)"
+              "$compiler" -std="$standard" -Wall -Wextra -Werror -pedantic -o "$output" tests/character_services_standard_price_policy.cpp
               "$output"
               rm -f "$output"
             done

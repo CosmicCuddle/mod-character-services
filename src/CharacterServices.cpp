@@ -357,10 +357,22 @@ class CharacterServices : public CreatureScript
         ChatHandler(player->GetSession()).PSendSysMessage("This tier is above the server progression limit.");
         return false;
       }
-      if (!sObjectMgr->GetQuestTemplate(66000u + newTier))
+      // UpdateProgressionState walks every intermediate reward marker.
+      // Preflight those templates before taking gold, otherwise a 10 -> 12
+      // advancement could partially grant tier 11 and then fail on tier 12.
+      // Tier 11 is intentionally disabled in this IP fork.
+      for (uint8 stage = currentTier + 1; stage <= newTier; ++stage)
       {
-        ChatHandler(player->GetSession()).PSendSysMessage("This tier's progression marker is unavailable.");
-        return false;
+        if (stage == 11)
+          continue;
+
+        if (player->GetQuestStatus(66000u + stage) != QUEST_STATUS_REWARDED &&
+            !sObjectMgr->GetQuestTemplate(66000u + stage))
+        {
+          ChatHandler(player->GetSession()).PSendSysMessage(
+              "A required progression marker is unavailable. No gold was charged.");
+          return false;
+        }
       }
 
       // Only the immediate next tier may be purchased. This single check also

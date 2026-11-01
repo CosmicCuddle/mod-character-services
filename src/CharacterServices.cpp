@@ -10,6 +10,7 @@
 #include "IndividualProgression.h"
 #include "CharacterServicesMoneyPolicy.h"
 #include "CharacterServicesGatePolicy.h"
+#include "CharacterServicesStandardPricePolicy.h"
 
 class CharacterServices : public CreatureScript
 {
@@ -82,14 +83,19 @@ class CharacterServices : public CreatureScript
         return false;
       }
 
-      if (sConfigMgr->GetOption<bool>("CharacterServices.NameChange.Enable", false))
-        AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1, "|TInterface/Icons/inv_misc_note_02:50:50|tChange My Name", GOSSIP_SENDER_MAIN, 1, "Confirm Name Change.", GetServiceCost(player, 1), false);
-      if (sConfigMgr->GetOption<bool>("CharacterServices.AppearanceChange.Enable", false))
-        AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1, "|TInterface/Icons/ability_rogue_disguise:50:50|tChange My Appearance", GOSSIP_SENDER_MAIN, 2, "Confirm Appearance Change.", GetServiceCost(player, 2), false);
-      if (sConfigMgr->GetOption<bool>("CharacterServices.RaceChange.Enable", false))
-        AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1, "|TInterface/Icons/inv_misc_grouplooking:50:50|tChange My Race", GOSSIP_SENDER_MAIN, 3, "Confirm Race Change.", GetServiceCost(player, 3), false);
-      if (sConfigMgr->GetOption<bool>("CharacterServices.FactionChange.Enable", false))
-        AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1, "|TInterface/Icons/inv_bannerpvp_03:50:50|tChange My Faction", GOSSIP_SENDER_MAIN, 4, "Confirm Faction Change.", GetServiceCost(player, 4), false);
+      uint32 standardServiceCopper = 0;
+      if (sConfigMgr->GetOption<bool>("CharacterServices.NameChange.Enable", false) &&
+          TryGetStandardServiceCost(player, 1, standardServiceCopper))
+        AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1, "|TInterface/Icons/inv_misc_note_02:50:50|tChange My Name", GOSSIP_SENDER_MAIN, 1, "Confirm Name Change.", standardServiceCopper, false);
+      if (sConfigMgr->GetOption<bool>("CharacterServices.AppearanceChange.Enable", false) &&
+          TryGetStandardServiceCost(player, 2, standardServiceCopper))
+        AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1, "|TInterface/Icons/ability_rogue_disguise:50:50|tChange My Appearance", GOSSIP_SENDER_MAIN, 2, "Confirm Appearance Change.", standardServiceCopper, false);
+      if (sConfigMgr->GetOption<bool>("CharacterServices.RaceChange.Enable", false) &&
+          TryGetStandardServiceCost(player, 3, standardServiceCopper))
+        AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1, "|TInterface/Icons/inv_misc_grouplooking:50:50|tChange My Race", GOSSIP_SENDER_MAIN, 3, "Confirm Race Change.", standardServiceCopper, false);
+      if (sConfigMgr->GetOption<bool>("CharacterServices.FactionChange.Enable", false) &&
+          TryGetStandardServiceCost(player, 4, standardServiceCopper))
+        AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1, "|TInterface/Icons/inv_bannerpvp_03:50:50|tChange My Faction", GOSSIP_SENDER_MAIN, 4, "Confirm Faction Change.", standardServiceCopper, false);
       
 #if defined(COSMIC_IP_PAID_EXPANSION_API_VERSION) && COSMIC_IP_PAID_EXPANSION_API_VERSION == 1
       // The owner must BOTH complete the prior era AND pay Vezrath.
@@ -298,7 +304,14 @@ class CharacterServices : public CreatureScript
         return false;
       }
 
-      uint32 cost = GetServiceCost(player, action);
+      uint32 cost = 0;
+      if (!TryGetStandardServiceCost(player, action, cost))
+      {
+        ChatHandler(player->GetSession()).PSendSysMessage(
+            "The configured price for this character service is invalid.");
+        CloseGossipMenuFor(player);
+        return false;
+      }
       if (!player->HasEnoughMoney(cost))
       {
         ChatHandler(player->GetSession()).PSendSysMessage("You do not have enough money for this service.");
@@ -306,7 +319,7 @@ class CharacterServices : public CreatureScript
         return false;
       }
 
-      player->ModifyMoney(-cost);
+      player->ModifyMoney(-static_cast<int32>(cost));
 
       switch (action)
       {
@@ -564,36 +577,35 @@ class CharacterServices : public CreatureScript
       return CharacterServicesMoneyPolicy::TryGoldToCopper(gold, true, copper);
     }
 
-    uint32 GetServiceCost(Player* player, uint8 service)
+    // Historical service prices are in GOLD. The gossip client may show the
+    // price, but the server MUST revalidate it before the one actual debit.
+    // Reject invalid/overflowed prices rather than wrapping to a cheap fee.
+    bool TryGetStandardServiceCost(Player* player, uint32 service, uint32& copper)
     {
-       bool dynamicCostEnabled = sConfigMgr->GetOption<bool>("CharacterServices.DynamicCost.Enable", false);
-       double playerLevel = player->GetLevel();
-       double dynamicRatio = (playerLevel / 80);
-       switch (service)
-       {
-         case 1:
-           {
-             uint32 serviceCost = sConfigMgr->GetOption<uint32>("CharacterServices.Cost.NameChange", 25) * 10000;
-             return dynamicCostEnabled ? dynamicRatio * serviceCost : serviceCost;
-           }
-         case 2:
-           {
-             uint32 serviceCost = sConfigMgr->GetOption<uint32>("CharacterServices.Cost.AppearanceChange", 50) * 10000;
-             return dynamicCostEnabled ? dynamicRatio * serviceCost : serviceCost;
-           }
-         case 3:
-           {
-             uint32 serviceCost = sConfigMgr->GetOption<uint32>("CharacterServices.Cost.RaceChange", 100) * 10000;
-             return dynamicCostEnabled ? dynamicRatio * serviceCost : serviceCost;
-           }
-         case 4:
-           {
-             uint32 serviceCost = sConfigMgr->GetOption<uint32>("CharacterServices.Cost.FactionChange", 250) * 10000;
-             return dynamicCostEnabled ? dynamicRatio * serviceCost : serviceCost;
-           }
-         default:
-           return 250 * 10000;
-       }
+      if (!player)
+        return false;
+
+      char const* key = nullptr;
+      uint32 fallbackGold = 0;
+      switch (service)
+      {
+        case 1:
+          key = "CharacterServices.Cost.NameChange"; fallbackGold = 25; break;
+        case 2:
+          key = "CharacterServices.Cost.AppearanceChange"; fallbackGold = 50; break;
+        case 3:
+          key = "CharacterServices.Cost.RaceChange"; fallbackGold = 100; break;
+        case 4:
+          key = "CharacterServices.Cost.FactionChange"; fallbackGold = 250; break;
+        default:
+          return false;
+      }
+
+      uint32 const gold = sConfigMgr->GetOption<uint32>(key, fallbackGold);
+      bool const dynamicEnabled = sConfigMgr->GetOption<bool>(
+          "CharacterServices.DynamicCost.Enable", false);
+      return CharacterServicesStandardPricePolicy::TryCost(
+          gold, player->GetLevel(), dynamicEnabled, copper);
     }
 };
 

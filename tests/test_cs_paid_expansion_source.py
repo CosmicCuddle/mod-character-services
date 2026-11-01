@@ -69,6 +69,13 @@ class PaidExpansionSourceContracts(unittest.TestCase):
         self.assertIn("CharacterServicesMoneyPolicy::TryGoldToCopper(gold, true, copper)", price)
         self.assertIn('#include "CharacterServicesMoneyPolicy.h"', CPP)
 
+    def test_generic_menu_has_no_second_gossip_debit(self):
+        block = CPP[CPP.index("// Add progression tier purchase option if enabled"):
+                    CPP.index("SendGossipMenuFor(")]
+        self.assertIn("std::to_string(tierCostCopper / 10000)", block)
+        self.assertIn("0u, false);", block)
+        self.assertIn("TryGetProgressionTierCost(nextTier, tierCostCopper)", block)
+
     def test_generic_fee_overflow_and_preflight_are_fail_closed(self):
         handler = CPP[CPP.index("// Handle progression tier purchases (action IDs 100+)"):
                       CPP.index("// Handle standard services (action IDs 1-4).")]

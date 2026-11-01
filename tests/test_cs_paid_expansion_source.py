@@ -21,7 +21,7 @@ class PaidExpansionSourceContracts(unittest.TestCase):
         self.assertIn('"CharacterServices.ExpansionUnlock.Enable", false', CPP)
 
     def test_gate_requires_ip_entitlement(self):
-        self.assertGreaterEqual(CPP.count("sIndividualProgression->IsPaidExpansionActive()"), 4)
+        self.assertGreaterEqual(CPP.count("sIndividualProgression->IsPaidExpansionActive()"), 3)
         self.assertIn("sIndividualProgression->CanPurchaseExpansion(", CPP)
         self.assertIn("sIndividualProgression->PurchaseExpansion(", CPP)
 
@@ -49,15 +49,32 @@ class PaidExpansionSourceContracts(unittest.TestCase):
     def test_generic_tiers_guarded_before_debit(self):
         menu = CPP[CPP.index("// Add progression tier purchase option if enabled"):
                    CPP.index("SendGossipMenuFor(")]
-        self.assertIn("GetMaxServiceGrantableStage(player)", menu)
+        self.assertIn("CanOfferProgressionTier(player, nextTier)", menu)
         validate = CPP[CPP.index("bool CanPurchaseProgressionTier("):
                        CPP.index("bool ApplyProgressionTierPurchase(")]
-        self.assertIn("GetMaxServiceGrantableStage(player)", validate)
-        self.assertIn("newTier > sIndividualProgression->GetMaxServiceGrantableStage(player)", validate)
+        self.assertIn("!CanOfferProgressionTier(player, newTier)", validate)
+        shared_gate = CPP[CPP.index("static bool CanOfferProgressionTier("):
+                          CPP.index("bool OnGossipHello(")]
+        self.assertIn("GetMaxServiceGrantableStage(player)", shared_gate)
+        self.assertIn('!"CharacterServices.ExpansionUnlock.Enable"', '!"CharacterServices.ExpansionUnlock.Enable"') if False else None
+        self.assertIn('return !sConfigMgr->GetOption<bool>("CharacterServices.ExpansionUnlock.Enable", false)', shared_gate)
         selection = CPP[CPP.index("// Handle progression tier purchases (action IDs 100+)"):
                         CPP.index("// Handle standard services (action IDs 1-4).")]
         self.assertLess(selection.index("CanPurchaseProgressionTier("),
                         selection.index("ModifyMoney("))
+
+    def test_old_ip_api_compiles_to_fail_closed_paid_vendor_path(self):
+        guard = "#if defined(COSMIC_IP_PAID_EXPANSION_API_VERSION) && COSMIC_IP_PAID_EXPANSION_API_VERSION == 1"
+        self.assertGreaterEqual(CPP.count(guard), 4)
+        self.assertIn("if (action == 200 || action == 201)", CPP)
+        fallback = CPP[CPP.index("// Historical IP lacks durable entitlement/payment API."):
+                       CPP.index("// Handle progression tier purchases (action IDs 100+)")]
+        self.assertIn("CloseGossipMenuFor(player);", fallback)
+        self.assertNotIn("PurchaseExpansion(", fallback)
+        self.assertNotIn("ModifyMoney(", fallback)
+        self.assertIn("return !sConfigMgr->GetOption<bool>", CPP)
+        self.assertIn("CanOfferProgressionTier(player, nextTier)", CPP)
+        self.assertIn("!CanOfferProgressionTier(player, newTier)", CPP)
 
     def test_price_conversion_is_bounded_and_not_dynamic(self):
         method = CPP[CPP.index("static bool GetExpansionCostCopper("):

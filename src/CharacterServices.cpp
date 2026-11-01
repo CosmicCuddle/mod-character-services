@@ -9,6 +9,7 @@
 #include "ScriptedGossip.h"
 #include "IndividualProgression.h"
 #include "CharacterServicesMoneyPolicy.h"
+#include "CharacterServicesGatePolicy.h"
 
 class CharacterServices : public CreatureScript
 {
@@ -38,8 +39,12 @@ class CharacterServices : public CreatureScript
     static bool CanOfferProgressionTier(Player* player, uint8 nextTier)
     {
 #if defined(COSMIC_IP_PAID_EXPANSION_API_VERSION) && COSMIC_IP_PAID_EXPANSION_API_VERSION == 1
-      return !sIndividualProgression->IsPaidExpansionActive() ||
-             nextTier <= sIndividualProgression->GetMaxServiceGrantableStage(player);
+      bool const ipPaidActive = sIndividualProgression->IsPaidExpansionActive();
+      uint8 const effectiveCeiling = ipPaidActive
+        ? sIndividualProgression->GetMaxServiceGrantableStage(player) : 0u;
+      return CharacterServicesGatePolicy::CanOfferGenericTier(
+          sConfigMgr->GetOption<bool>("CharacterServices.ExpansionUnlock.Enable", false),
+          ipPaidActive, nextTier, effectiveCeiling);
 #else
       (void)player;
       (void)nextTier;

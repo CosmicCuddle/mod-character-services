@@ -1,0 +1,72 @@
+# Vezrath earned-then-paid expansion purchase — Development Candidate
+
+**Owner:** CosmicCuddle. **Date:** 2026-11-01.  
+**Status:** **DRAFT C++ SOURCE, not compiled/linked/staged/live**. All new configuration is default OFF.  
+**Preservation parent:** [Character Services original source snapshots PR #1](https://github.com/CosmicCuddle/mod-character-services/pull/1).  
+**Required IP API:** [Individual Progression paid-entitlement DRAFT PR #23](https://github.com/CosmicCuddle/mod-individual-progression/pull/23) exact API as of SHA `5fde28560ae5dd940329a82894111e757d7b7b44`. **This vendor branch is not independently buildable against old IP master without that interface.**  
+**Owner decision and unresolved historical details:** [coordination Issue #18](https://github.com/CosmicCuddle/Naxxramas-Server-Coordination/issues/18).  
+**Master tasks:** [IP roadmap DRAFT #22](https://github.com/CosmicCuddle/mod-individual-progression/pull/22).
+
+## Required gameplay contract
+
+- Final Vanilla stage7 (current Kel'Thuzad) **earns eligibility only**; pay Chronomancer Vezrath to open **TBC entry stage8** and the permitted level cap/locations.
+- Final TBC stage13 (current Kil'jaeden) **earns eligibility only**; pay Vezrath for a **separate per-character Wrath flag**. Payment **never awards stage14**, which means the first Wrath raid tier is already completed.
+- Paying without earning the final boss is denied; earning the boss but not paying leaves the character in the current era.
+- Ordinary tier purchasing/catch-up (action100+) must not sell stage7, stage8, stage13 or stage14 as an alternative cross-era shortcut when paid entitlement enforcement is active; this code uses IP's `GetMaxServiceGrantableStage` at BOTH menu and purchase time.
+- Bots, races, Death Knights, excluded accounts and GM overrides are handled by the corresponding IP feature policy. Vendor code does not invent new exceptions.
+
+## This vendor branch's ACTUAL source changes
+
+1. The existing, safer upstream `src/CharacterServices.cpp` remains the starting point. It retains `IsStandardServiceEnabled`, `CanPurchaseProgressionTier` pre-debit validation, and ordinary names/race/faction service handling.
+2. When **both** `CharacterServices.ExpansionUnlock.Enable=1` and IP `IsPaidExpansionActive()` hold, menu actions 200 (TBC) and 201 (Wrath) are shown only for an eligible character. `InsufficientFunds` may still show a priced offer so the player knows what to save for.
+3. The gossip offers show their configured gold prices in confirmation text but send **0 copper as the Core gossip-menu fee**: the IP purchase method is the **sole money-debit authority**, preventing a second automatic menu fee. On selection the vendor **revalidates price/config/era** then delegates the *entire charge and grant* to IP's `PurchaseExpansion`. It neither calls `ModifyMoney` nor `ForceUpdateProgressionState` itself in that purchase route. A double click yields `AlreadyOwned` without charging again according to IP's runtime contract.
+4. Config price is expressed in **gold** and checked before conversion to **copper**. Zero or any price exceeding signed-32-bit safe copper is refused, not wrapped. Distributed defaults **1000g / 3000g** preserve the historical ZIP values but **are not confirmed live/approved prices**. DynamicCost is not applied to these two expansion passage offers.
+5. Top-level sender and service-enabled guards reject invalid gossip requests; these guards also protect the old generic service path. Tier purchase revalidation checks IP's entitlement-aware maximum before debit.
+6. New `tests/test_cs_paid_expansion_source.py` and scoped CI provide **source-only** checks. They cannot prove compiled API compatibility, money persistence, packet-level replays, client-side display, success/failure rollback or gameplay.
+
+## Open technical / gameplay questions
+
+- Source IP #23 defaults OFF and depends on Core `EnablePlayerSettings=1`; without that, no new vendor expansion purchase is available. This feature is **not active or guaranteed** merely by compiling this module.
+- IP #23 has its own save/refund logic. Confirm on real staged server that money, quest marker and entitlement save atomically, and that exceptions, shutdown, relog and repeated/select-delayed gossip cannot charge twice. Do not assume Gold/DB atomicity from C++ source alone.
+- Confirm the exact final milestones (and pre/post-raid optional gates) with Information, and treatment of existing stage13/purchased characters, account catch-up, GM bypass, Blood Elf/Draenei and Death Knight start privileges.
+- Owner calls NPC **Chronomancer Vezrath**. Unchanged tracked world SQL names **Chronomancer Amberwind**. The actual installed NPC, spawn, script binding and world DB have NOT been inspected; **do not run the upstream SQL blindly**.
+- Validate gold presentation/requirements in the exact AzerothCore gossip implementation. The module delegates purchase money to IP; it must not accidentally trigger a second automatic client/server fee. Confirm after compiling against pinned Core/IP.
+- Generic original `ProgressionTier.RequireAccountUnlock` OFF can permit all in-era catch-up tiers. Owner needs to approve whether that still applies. No unapproved economic design changes are made.
+- This is the first code candidate. Separate native Worldserver full link, high-fidelity synthetic tests and actual staged human Vezrath tests are REQUIRED before any merge/enable/deployment.
+
+## Tests / rollback / approval
+
+Run exact compiled Core+IP#23+CharacterServices PR with compatibility verified against Playerbots and Naxx; test boss-only, paid-only, valid purchase, insufficient funds, tampered packet, double click, server restart, saved entitlement, inherited characters, no stage14, stage13 unpaid XP/travel, human/bot starts and generic-tier bypass. Back up character database and running configuration, rehearse rollback with **money+entitlement consistency**. Keep IP and vendor feature switches OFF on production until the owner approves the finished deployment. Reverting this vendor branch to upstream while leaving IP default OFF restores legacy source; payment migration/rollback cannot be assumed safe if previously enabled.
+
+**No source ZIP applied wholesale, no upstream license/content removed, no live processes/config/SQL/DB/files touched.** Historical originals remain byte-identical in the docs snapshot.
+
+
+## Follow-up coding: close the inherited generic-tier money and grant hazards
+
+Information identified two conditional issues in the *older generic tier path*, not in the new IP-expansion purchase API ([source review](https://github.com/CosmicCuddle/mod-character-services/pull/2#issuecomment-6559323446)). Both now have source-level mitigations in this same DRAFT:
+
+- **Unexpectedly large tier cost:** all generic tier prices now pass the same pure `CharacterServicesMoneyPolicy::TryGoldToCopper` boundary helper used by expansion passage. It checks that `gold * 10000` fits in the signed 32-bit wallet/debit amount **before multiplication**, and refuses invalid price without showing a purchasable offer or charging. It deliberately retains a previously valid zero-gold generic-tier configuration (distinct from an invalid free expansion passage). The exact reported `429497` gold wrap case and signed boundary are covered by a **portable executable C++ test**, compiled with GCC/Clang in C++17/C++20 in disposable CI.
+- **Charge without awarded tier / hidden marker missing:** generic tier selection revalidates against the configured progression limit, checks that the exact target hidden quest template (`66000 + tier`) exists, and checks account progress + effective paid-era ceiling **before** debit. It now performs a non-destructive `UpdateProgressionState`, verifies the target rewarded marker and highest stage, and refunds the script-side debit if verification fails. On a failure it does not claim the tier succeeded. This avoids the former `ForceUpdateProgressionState` path that removed previously rewarded markers and silently skipped absent templates.
+- **Unexpected action alias / menu fee:** unsigned action values outside 101–118 are rejected before narrowing to `uint8`; actions 200/201 stay separate. Standard zero-free-price handling remains unchanged. Generic and expansion gossip offers present the configured price in text but send a **zero Core gossip fee**. Only the explicit service method attempts to debit money. No automatic second fee.
+- **Executable and source CI:** `tests/character_services_money_policy.cpp` checks gold boundaries using the actual pure C++ helper; `tests/test_cs_paid_expansion_source.py` checks price guards, preflight, post-grant receipt, refund path, non-destructive grant and bypass denial. **These tests do not exercise real AzerothCore Player, gold balances, persistence, Worldserver or SQL.**
+
+**Remaining risk:** preflight and refund protect the source-level conditional failures but are not an ACID guarantee when the world process terminates between wallet debit and character save; a mid-operation exception, partial intermediate marker update, a restored older DB or a concurrent gossip request needs full staging/restart testing and an explicit recovery procedure. The exact IP#23 + current Core/PB/Character Services C++ link and real NPC test remain mandatory before approval. This DRAFT source does not implement financial migration or execute any owner-world database operation.
+
+
+## New exact-head native cross-module compilation gate (DRAFT)
+
+`.github/workflows/character-services-ip-paid-native-link-20261101.yml` is now a **real** disposable runner build, not a pure source assertion. It pins the historical Grimfeather AzerothCore Core `8daffdabe9202c228e45d833c9a1d399597a15cd`, Playerbots `e88cc4099e69f35126b28942a412ca702d20453b`, IP paid-entitlement DRAFT #23 `5fde28560ae5dd940329a82894111e757d7b7b44`, and historical Naxx module `80e9de1c39a6dc995188a80c31a5e785d0f2a6f9`. It checks out the **exact Character Services PR head**, asserts both distributed paid-expansion switches OFF and owner originals untouched, applies exactly two already documented runner-only Playerbots compatibility substitutions, configures full static modules, asserts `IndividualProgressionExpansion.cpp` and `CharacterServices.cpp` are in the actual compile graph, and requests the final **Worldserver native compile/link** without running it.
+
+**Unverified until an exact-head green workflow is observed.** A successful native link at these historical pins still does not establish installed server compatibility, client gossip money behavior, durable persisted purchase or successful gameplay. The runner-only PB substitutions do not prove the owner's PB fork matches the pin. No installation, live server startup, DB migration, payment or archive deletion is performed.
+
+**Additional actual generic tier preflight:** before taking gold, iterate each needed future reward marker up to the requested tier; deliberately skip disabled stage 11 on legitimate 10→12 transition. Stop without charging when any required marker template is missing. This supplements exact target-stage and post-award verification, while avoiding partial intermediate progress caused solely by missing templates; mid-operation crash consistency remains separate. It does not silently re-enable stage11.
+
+## Backward-API compatibility and intentional fail-closed behavior (DRAFT)
+
+IP Claude added `COSMIC_IP_PAID_EXPANSION_API_VERSION 1` to [IP DRAFT #23](https://github.com/CosmicCuddle/mod-individual-progression/pull/23), exact source `42a21d6bd9bb91877105dd4cd6f45df814ceecdf`. This Character Services candidate now compiles the Vezrath code **only** if that API macro is present at version 1. With an older IP header (no macro) normal Character Services source remains available; **both expansion actions 200/201 refuse unconditionally** rather than calling historical `ForceUpdateProgressionState(8/14)`, and normal generic tier purchases preserve their existing behavior **only when the new vendor expansion switch is OFF**. If the vendor expansion switch is ON against unsupported IP, generic tier purchase also fails closed, so a misconfigured dependency cannot bypass the intended expansion gate. The original name/race/appearance/faction services remain independent of the new API.
+
+The pinned combined native link now uses IP `62e6828` and explicitly checks the version macro. These are source changes and require a new exact-head native link. There is **no silent automatic transition to the new paid policy** in an existing installed IP module. The owner still needs a reviewed installation plan for matching Core/IP/Character Services source versions, paid flag storage, rollback and staged purchase verification.
+
+## Purchase failure wording and updated IP exact source pin
+
+The Character Services paid-gossip handler now distinguishes `EntryUnavailable` (a failed attempt or refund branch needing operator balance review), `FeatureInactive` (service unavailable), `BlockedByProgressionLimit` (server progression cap), `InsufficientFunds`, `AlreadyOwned`, and unmet earned boss prerequisites. It **never claims in-game money was refunded successfully without an observed receipt**; the player is told to check the gold balance and contact staff if it changed. This improves recovery guidance while stage/gold atomicity, relog and server-crash acceptance remain staged tests. The combined compile workflow now uses exact [IP #23](https://github.com/CosmicCuddle/mod-individual-progression/pull/23) head `42a21d6bd9bb91877105dd4cd6f45df814ceecdf`, including Claude's grandfather/settings fixes. This is a native build input pin, not a claim that Grok's DB-condition/account bypass concerns are resolved. New cross-module CI must pass at this precise vendor head.

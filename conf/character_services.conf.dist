@@ -129,6 +129,28 @@ CharacterServices.Cost.FactionChange = 250
 #        18 PROGRESSION_WOTLK_TIER_5   (Ruby Sanctum)
 #
 
+########################################
+# CosmicCuddle — earned-then-paid expansion passage (DRAFT)
+########################################
+#
+# The character must FIRST earn the final Vanilla or TBC milestone;
+# only a separately PAID purchase at Chronomancer Vezrath opens the
+# next expansion. Costs below are in GOLD; the IP API receives COPPER.
+# The original owner's ZIP distributed defaults were 1000g / 3000g.
+# Actual installed values, price approval and NPC name/DB remain unverified.
+#
+# This vendor feature requires the matching IP DRAFT paid entitlement API
+# AND IndividualProgression.PaidExpansion.Enable = 1
+# AND AzerothCore EnablePlayerSettings = 1.
+# Without them no new expansion purchase is offered or charged.
+#
+# DISABLED by default until full build, gameplay, backup/rollback and
+# explicit CosmicCuddle approval. Does NOT merge or enable automatically.
+#
+CharacterServices.ExpansionUnlock.Enable = 0
+CharacterServices.ExpansionUnlock.Cost.VanillaToTBC = 1000
+CharacterServices.ExpansionUnlock.Cost.TBCToWotLK = 3000
+
 # Vanilla progression costs
 
 # Buying a progression tier, completes that progression tier. 

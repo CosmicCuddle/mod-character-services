@@ -1,0 +1,145 @@
+name: Character Services + paid IP pinned native Worldserver link (DRAFT)
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'conf/**'
+      - 'tests/**'
+      - '.github/workflows/character-services-ip-paid-native-link-20261101.yml'
+  push:
+    paths:
+      - 'src/**'
+      - 'conf/**'
+      - '.github/workflows/character-services-ip-paid-native-link-20261101.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  pinned-paid-vendor-worldserver-link:
+    name: Core + Playerbots + IP#23 + Naxx + Character Services exact-head Worldserver (NO LAUNCH)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 170
+    steps:
+      - name: Checkout historical fixed Core
+        uses: actions/checkout@v4
+        with:
+          repository: Grimfeather/azerothcore-wotlk
+          ref: 8daffdabe9202c228e45d833c9a1d399597a15cd
+          path: acore
+          persist-credentials: false
+      - name: Checkout historical Playerbots
+        uses: actions/checkout@v4
+        with:
+          repository: mod-playerbots/mod-playerbots
+          ref: e88cc4099e69f35126b28942a412ca702d20453b
+          path: acore/modules/mod-playerbots
+          persist-credentials: false
+      - name: Checkout exact IP paid-entitlement draft
+        uses: actions/checkout@v4
+        with:
+          repository: CosmicCuddle/mod-individual-progression
+          ref: 42a21d6bd9bb91877105dd4cd6f45df814ceecdf
+          path: acore/modules/mod-individual-progression
+          persist-credentials: false
+      - name: Checkout Naxx pinned historical compatibility module
+        uses: actions/checkout@v4
+        with:
+          repository: CosmicCuddle/Mod-Naxxramas-Core
+          ref: 80e9de1c39a6dc995188a80c31a5e785d0f2a6f9
+          path: acore/modules/mod-naxxramas-core
+          persist-credentials: false
+      - name: Checkout exact Character Services development PR
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: acore/modules/mod-character-services
+          persist-credentials: false
+      - name: Assert all exact pins, owner snapshots, disabled defaults and IP API
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C acore rev-parse HEAD)" = 8daffdabe9202c228e45d833c9a1d399597a15cd
+          test "$(git -C acore/modules/mod-playerbots rev-parse HEAD)" = e88cc4099e69f35126b28942a412ca702d20453b
+          test "$(git -C acore/modules/mod-individual-progression rev-parse HEAD)" = 42a21d6bd9bb91877105dd4cd6f45df814ceecdf
+          test "$(git -C acore/modules/mod-naxxramas-core rev-parse HEAD)" = 80e9de1c39a6dc995188a80c31a5e785d0f2a6f9
+          test "$(git -C acore/modules/mod-character-services rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          cs=acore/modules/mod-character-services
+          ip=acore/modules/mod-individual-progression
+          grep -Fqx 'CharacterServices.ExpansionUnlock.Enable = 0' "$cs/conf/character_services.conf.dist"
+          grep -Fqx 'IndividualProgression.PaidExpansion.Enable = 0' "$ip/conf/individualProgression.conf.dist"
+          grep -Fq 'PurchaseExpansion(Player* player' "$ip/src/IndividualProgression.h"
+          grep -Fqx '#define COSMIC_IP_PAID_EXPANSION_API_VERSION 1' "$ip/src/IndividualProgression.h"
+          grep -Fq 'PurchaseExpansion(' "$cs/src/CharacterServices.cpp"
+          test -s "$cs/docs/source-snapshots/CharacterServices-owner-20261101.cpp"
+          test -s "$cs/docs/source-snapshots/character_services-owner-20261101.conf.dist"
+          echo 'PASS: pinned source / OFF switches / separate historical owner snapshots'
+      - name: Apply exactly two pinned Playerbots compatibility edits ON CI RUNNER ONLY
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('acore/modules/mod-playerbots')
+          edits={
+            'src/Db/PlayerbotsDatabase.h': (
+              'MySQLConnection* CreateAsyncConnection(ProducerConsumerQueue<SQLOperation*>* queue,',
+              'MySQLConnection* CreateConnection(ProducerConsumerQueue<SQLOperation*>* queue,'),
+            'src/Util/LocaleColumns.h':(
+              'if (!IsLocaleRegistered(locale))','if (!localeNames[locale])')
+          }
+          for name,(old,new) in edits.items():
+            f=root/name
+            s=f.read_text()
+            assert s.count(old)==1 and new not in s,name
+            f.write_text(s.replace(old,new))
+          PY
+          git -C acore/modules/mod-playerbots diff --check
+          git -C acore/modules/mod-playerbots diff --name-only | sort > /tmp/actual.txt
+          printf '%s\n' 'src/Db/PlayerbotsDatabase.h' 'src/Util/LocaleColumns.h' | sort > /tmp/allowed.txt
+          diff -u /tmp/allowed.txt /tmp/actual.txt
+      - name: Install compile dependencies on disposable runner only
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            git cmake ninja-build g++ make pkg-config file \
+            libmysqlclient-dev libssl-dev libbz2-dev \
+            libreadline-dev libncurses-dev libboost-all-dev
+      - name: Generate pinned static module compile database (NO SERVER START)
+        run: |
+          cmake -S acore -B acore-build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DCMAKE_CXX_FLAGS="-DCOSMIC_IP_F14_REQUIRE_PLAYERBOTS" \
+            -DMODULES=static -DSCRIPTS=static \
+            -DAPPS_BUILD=world-only -DTOOLS_BUILD=none \
+            -DUSE_COREPCH=ON -DUSE_SCRIPTPCH=ON
+      - name: Assert both actual module C++ compilation units are in graph
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          cc=json.loads(Path('acore-build/compile_commands.json').read_text())
+          for module,file in [
+            ('mod-individual-progression','IndividualProgressionExpansion.cpp'),
+            ('mod-character-services','CharacterServices.cpp')
+          ]:
+            hits=[entry for entry in cc
+                  if entry.get('file','').replace('\\','/').endswith('/'+module+'/src/'+file)]
+            assert len(hits)==1,(module,file,len(hits))
+            print('PASS: real compilation unit present',module,file)
+          PY
+      - name: Compile AND link actual combined Worldserver (do not execute)
+        run: cmake --build acore-build --target worldserver --parallel 2
+      - name: Verify finished binary without launching it
+        run: |
+          test -s acore-build/src/server/apps/worldserver
+          test -x acore-build/src/server/apps/worldserver
+          echo 'PASS: pinned Core + PB + IP paid entitlement + Naxx + Character Services linked'
+          echo 'No owner host, accounts, DB, NPC, gold, config, enablement or live archive touched'
+      - name: Safety and confidence boundary
+        if: always()
+        run: |
+          echo 'Runner-only PB two edits are NOT owner-installed branch proof.'
+          echo 'Even a successful native link is NOT a completed gossip/payment/restart/gameplay test.'
+          echo 'Both expansion feature flags remain OFF; do not deploy without CosmicCuddle approval.'

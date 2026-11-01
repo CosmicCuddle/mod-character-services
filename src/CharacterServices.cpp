@@ -8,11 +8,46 @@
 #include "Chat.h"
 #include "ScriptedGossip.h"
 #include "IndividualProgression.h"
+#include "CharacterServicesMoneyPolicy.h"
 
 class CharacterServices : public CreatureScript
 {
   public:
     CharacterServices() : CreatureScript("character_services") { }
+
+    // The vendor can still compile with historical IP without the paid API.
+    // In that mode passage is not offered, and an explicitly configured
+    // paid gate must deny generic tier sales instead of bypassing it.
+#if defined(COSMIC_IP_PAID_EXPANSION_API_VERSION) && COSMIC_IP_PAID_EXPANSION_API_VERSION == 1
+    using ExpansionEra = IndividualProgressionExpansionPolicy::Era;
+    using ExpansionResult = IndividualProgressionExpansionPolicy::PurchaseResult;
+
+    // Config prices are in gold; the IP API receives COPPER and internally
+    // debits a signed 32-bit value. Reject overflow and accidental free offers.
+    static bool GetExpansionCostCopper(ExpansionEra era, uint32& copper)
+    {
+      char const* key = era == ExpansionEra::Tbc
+        ? "CharacterServices.ExpansionUnlock.Cost.VanillaToTBC"
+        : "CharacterServices.ExpansionUnlock.Cost.TBCToWotLK";
+      uint32 const fallbackGold = era == ExpansionEra::Tbc ? 1000u : 3000u;
+      uint32 const gold = sConfigMgr->GetOption<uint32>(key, fallbackGold);
+      return CharacterServicesMoneyPolicy::TryGoldToCopper(gold, false, copper);
+    }
+#endif
+
+    static bool CanOfferProgressionTier(Player* player, uint8 nextTier)
+    {
+#if defined(COSMIC_IP_PAID_EXPANSION_API_VERSION) && COSMIC_IP_PAID_EXPANSION_API_VERSION == 1
+      return !sIndividualProgression->IsPaidExpansionActive() ||
+             nextTier <= sIndividualProgression->GetMaxServiceGrantableStage(player);
+#else
+      (void)player;
+      (void)nextTier;
+      // If a vendor config requests paid expansion under old IP, fail closed
+      // instead of allowing legacy generic tier sales to cross the era.
+      return !sConfigMgr->GetOption<bool>("CharacterServices.ExpansionUnlock.Enable", false);
+#endif
+    }
 
     bool OnGossipHello(Player* player, Creature* creature) override
     {
@@ -38,6 +73,39 @@ class CharacterServices : public CreatureScript
       if (sConfigMgr->GetOption<bool>("CharacterServices.FactionChange.Enable", false))
         AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1, "|TInterface/Icons/inv_bannerpvp_03:50:50|tChange My Faction", GOSSIP_SENDER_MAIN, 4, "Confirm Faction Change.", GetServiceCost(player, 4), false);
       
+#if defined(COSMIC_IP_PAID_EXPANSION_API_VERSION) && COSMIC_IP_PAID_EXPANSION_API_VERSION == 1
+      // The owner must BOTH complete the prior era AND pay Vezrath.
+      // The IP entitlement module performs the eligibility and money checks.
+      // This source requires IP's DRAFT paid-expansion API, default OFF.
+      if (sConfigMgr->GetOption<bool>("CharacterServices.ExpansionUnlock.Enable", false) &&
+          sIndividualProgression->IsPaidExpansionActive())
+      {
+        uint32 copper = 0;
+        if (GetExpansionCostCopper(ExpansionEra::Tbc, copper))
+        {
+          ExpansionResult const result = sIndividualProgression->CanPurchaseExpansion(
+              player, static_cast<uint8>(ExpansionEra::Tbc), copper);
+          if (result == ExpansionResult::Success || result == ExpansionResult::InsufficientFunds)
+            AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1,
+                "|TInterface/Icons/achievement_dungeon_karazhan:50:50|tUnlock The Burning Crusade",
+                GOSSIP_SENDER_MAIN, 200,
+                "Confirm TBC passage for " + std::to_string(copper / 10000) + " gold. IP will handle the payment.",
+                0u, false);
+        }
+        if (GetExpansionCostCopper(ExpansionEra::Wrath, copper))
+        {
+          ExpansionResult const result = sIndividualProgression->CanPurchaseExpansion(
+              player, static_cast<uint8>(ExpansionEra::Wrath), copper);
+          if (result == ExpansionResult::Success || result == ExpansionResult::InsufficientFunds)
+            AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1,
+                "|TInterface/Icons/achievement_boss_kelthuzad_01:50:50|tUnlock Wrath of the Lich King",
+                GOSSIP_SENDER_MAIN, 201,
+                "Confirm Wrath passage for " + std::to_string(copper / 10000) + " gold. IP will handle the payment.",
+                0u, false);
+        }
+      }
+
+#endif
       // Add progression tier purchase option if enabled
       if (sConfigMgr->GetOption<bool>("CharacterServices.ProgressionTier.Enable", false))
       {
@@ -59,16 +127,21 @@ class CharacterServices : public CreatureScript
         uint8 nextTier = GetNextProgressionTier(currentTier);
 
         // Only offer if the account has unlocked the next tier and the player is not at max progression
-        if (currentTier < PROGRESSION_WOTLK_TIER_5 && nextTier <= accountMaxTier)
+        if (currentTier < PROGRESSION_WOTLK_TIER_5 && nextTier <= accountMaxTier &&
+            CanOfferProgressionTier(player, nextTier))
         {
           std::string nextTierName = GetProgressionTierName(nextTier);
           std::string tierIcon = GetTierIcon(nextTier);
 
-          AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1,
-            "|T" + tierIcon + ":50:50|tProgress to " + nextTierName,
-            GOSSIP_SENDER_MAIN, 100 + nextTier, // Use 100 + tier as the action ID
-            "Purchase progression to: " + nextTierName,
-            GetProgressionTierCost(nextTier), false);
+          uint32 tierCostCopper = 0;
+          if (TryGetProgressionTierCost(nextTier, tierCostCopper))
+            AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1,
+              "|T" + tierIcon + ":50:50|tProgress to " + nextTierName,
+              GOSSIP_SENDER_MAIN, 100 + nextTier, // Use 100 + tier as the action ID
+              "Purchase progression to: " + nextTierName + " for " +
+                  std::to_string(tierCostCopper / 10000) + " gold. The service will charge on success.",
+              0u, false);
+          // Invalid/overflowed configured tier price: no purchasable offer.
         }
         else if (currentTier < PROGRESSION_WOTLK_TIER_5) // Not at max, but nothing unlocked to buy yet
         {
@@ -81,13 +154,71 @@ class CharacterServices : public CreatureScript
       return true;
     }
 
-    bool OnGossipSelect(Player* player, Creature* /*creature*/, uint32 /*sender*/, uint32 action) override
+    bool OnGossipSelect(Player* player, Creature* /*creature*/, uint32 sender, uint32 action) override
     {
       if (!player || !player->GetSession())
           return false;
-          
-      ClearGossipMenuFor(player);
 
+      ClearGossipMenuFor(player);
+      if (sender != GOSSIP_SENDER_MAIN ||
+          !sConfigMgr->GetOption<bool>("CharacterServices.Enable", false))
+      {
+        CloseGossipMenuFor(player);
+        return false;
+      }
+
+#if defined(COSMIC_IP_PAID_EXPANSION_API_VERSION) && COSMIC_IP_PAID_EXPANSION_API_VERSION == 1
+      // Expansion passage: ALWAYS delegate eligibility, debit and durable
+      // entitlement to IP. Never grant Wrath first-raid completion (stage 14).
+      if (action == 200 || action == 201)
+      {
+        if (!sConfigMgr->GetOption<bool>("CharacterServices.ExpansionUnlock.Enable", false) ||
+            !sIndividualProgression->IsPaidExpansionActive())
+        {
+          CloseGossipMenuFor(player);
+          return false;
+        }
+        ExpansionEra const era = action == 200 ? ExpansionEra::Tbc : ExpansionEra::Wrath;
+        uint32 copper = 0;
+        if (!GetExpansionCostCopper(era, copper))
+        {
+          ChatHandler(player->GetSession()).PSendSysMessage("Expansion access is temporarily unavailable due to an invalid service price.");
+          CloseGossipMenuFor(player);
+          return false;
+        }
+
+        ExpansionResult const purchased = sIndividualProgression->PurchaseExpansion(
+            player, static_cast<uint8>(era), copper);
+        if (purchased == ExpansionResult::Success)
+        {
+          sIndividualProgression->checkIPPhasing(player, player->GetAreaId());
+          ChatHandler(player->GetSession()).PSendSysMessage("Expansion access purchased successfully.");
+        }
+        else if (purchased == ExpansionResult::InsufficientFunds)
+          ChatHandler(player->GetSession()).PSendSysMessage("You do not have enough gold for this expansion.");
+        else if (purchased == ExpansionResult::AlreadyOwned)
+          ChatHandler(player->GetSession()).PSendSysMessage("You already own this expansion's access.");
+        else if (purchased == ExpansionResult::EntryUnavailable)
+          ChatHandler(player->GetSession()).PSendSysMessage("This purchase could not be completed. Check your gold and contact server staff if the balance changed.");
+        else if (purchased == ExpansionResult::FeatureInactive)
+          ChatHandler(player->GetSession()).PSendSysMessage("The expansion purchase service is unavailable. No purchase was processed.");
+        else if (purchased == ExpansionResult::BlockedByProgressionLimit)
+          ChatHandler(player->GetSession()).PSendSysMessage("This expansion is not yet available on the server.");
+        else
+          ChatHandler(player->GetSession()).PSendSysMessage("You have not yet met the final progression requirements for this expansion.");
+        CloseGossipMenuFor(player);
+        return purchased == ExpansionResult::Success;
+      }
+
+#else
+      // Historical IP lacks durable entitlement/payment API. Always deny
+      // forged passage selection; never fall back to ForceUpdate(8/14).
+      if (action == 200 || action == 201)
+      {
+        CloseGossipMenuFor(player);
+        return false;
+      }
+#endif
       // Handle progression tier purchases (action IDs 100+)
       if (action >= 100)
       {
@@ -97,7 +228,14 @@ class CharacterServices : public CreatureScript
           return false;
         }
 
-        uint8 tierToPurchase = action - 100;
+        // Do not truncate an arbitrary network action to uint8: 356 would
+        // otherwise alias tier 0 and 357 could alias a legitimate tier 1.
+        if (action < 101 || action > 118)
+        {
+          CloseGossipMenuFor(player);
+          return false;
+        }
+        uint8 tierToPurchase = static_cast<uint8>(action - 100);
 
         // Validate the purchase before taking any money so a failed service never costs gold
         if (!CanPurchaseProgressionTier(player, tierToPurchase))
@@ -106,7 +244,13 @@ class CharacterServices : public CreatureScript
           return false;
         }
 
-        uint32 cost = GetProgressionTierCost(tierToPurchase);
+        uint32 cost = 0;
+        if (!TryGetProgressionTierCost(tierToPurchase, cost))
+        {
+          ChatHandler(player->GetSession()).PSendSysMessage("The configured price for this progression tier is invalid.");
+          CloseGossipMenuFor(player);
+          return false;
+        }
         if (!player->HasEnoughMoney(cost))
         {
           ChatHandler(player->GetSession()).PSendSysMessage("You do not have enough money for this service.");
@@ -114,10 +258,18 @@ class CharacterServices : public CreatureScript
           return false;
         }
 
-        player->ModifyMoney(-cost);
-        ApplyProgressionTierPurchase(player, tierToPurchase);
+        player->ModifyMoney(-static_cast<int32>(cost));
+        bool const granted = ApplyProgressionTierPurchase(player, tierToPurchase);
+        if (!granted)
+        {
+          // A missing/failed target stage must not leave the player poorer.
+          // Source-only safety: full persistence/rollback still needs staging.
+          player->ModifyMoney(static_cast<int32>(cost));
+          ChatHandler(player->GetSession()).PSendSysMessage(
+              "This progression tier could not be granted. Your gold has been refunded.");
+        }
         CloseGossipMenuFor(player);
-        return true;
+        return granted;
       }
 
       // Handle standard services (action IDs 1-4). Re-check the service is enabled
@@ -222,6 +374,42 @@ class CharacterServices : public CreatureScript
         }
       }
 
+      // A higher-level account or forged generic gossip action must never
+      // grant another era's entry OR final boss milestone on the paid path.
+      if (!CanOfferProgressionTier(player, newTier))
+      {
+        ChatHandler(player->GetSession()).PSendSysMessage(
+            "You must finish the current era and purchase the next expansion from Chronomancer Vezrath.");
+        return false;
+      }
+
+      // Do not debit for a hidden quest marker that cannot be awarded.
+      // ForceUpdateProgressionState silently skipped missing templates; the
+      // new non-destructive grant and this target preflight avoid that path.
+      if (sIndividualProgression->progressionLimit &&
+          newTier > sIndividualProgression->progressionLimit)
+      {
+        ChatHandler(player->GetSession()).PSendSysMessage("This tier is above the server progression limit.");
+        return false;
+      }
+      // UpdateProgressionState walks every intermediate reward marker.
+      // Preflight those templates before taking gold, otherwise a 10 -> 12
+      // advancement could partially grant tier 11 and then fail on tier 12.
+      // Tier 11 is intentionally disabled in this IP fork.
+      for (uint8 stage = currentTier + 1; stage <= newTier; ++stage)
+      {
+        if (stage == 11)
+          continue;
+
+        if (player->GetQuestStatus(66000u + stage) != QUEST_STATUS_REWARDED &&
+            !sObjectMgr->GetQuestTemplate(66000u + stage))
+        {
+          ChatHandler(player->GetSession()).PSendSysMessage(
+              "A required progression marker is unavailable. No gold was charged.");
+          return false;
+        }
+      }
+
       // Only the immediate next tier may be purchased. This single check also
       // rejects already-owned tiers and any attempt to skip ahead, and it
       // correctly allows the 10 -> 12 step over the disabled tier 11.
@@ -241,14 +429,18 @@ class CharacterServices : public CreatureScript
       return true;
     }
 
-    // Applies the progression tier and refreshes the player's phasing/adjustments
-    // so the change takes effect without requiring a relog (mirrors `.ip set`).
-    void ApplyProgressionTierPurchase(Player* player, uint8 newTier)
+    // Non-destructive incremental tier grant. Never clear old boss markers.
+    // Return an actual post-condition instead of charging on a void call.
+    bool ApplyProgressionTierPurchase(Player* player, uint8 newTier)
     {
-      sIndividualProgression->ForceUpdateProgressionState(player, static_cast<ProgressionState>(newTier));
-      sIndividualProgression->checkIPPhasing(player, player->GetAreaId());
+      sIndividualProgression->UpdateProgressionState(player, static_cast<ProgressionState>(newTier));
+      if (sIndividualProgression->GetPlayerProgressionFromQuests(player) < newTier ||
+          player->GetQuestStatus(66000u + newTier) != QUEST_STATUS_REWARDED)
+        return false;
 
+      sIndividualProgression->checkIPPhasing(player, player->GetAreaId());
       ChatHandler(player->GetSession()).PSendSysMessage("You have successfully progressed to {}.", GetProgressionTierName(newTier));
+      return true;
     }
 
     std::string GetTierIcon(uint8 tier)
@@ -344,12 +536,14 @@ class CharacterServices : public CreatureScript
     // Progression tiers use a static, configurable per-tier cost. DynamicCost
     // scaling intentionally does not apply here (it only affects the standard
     // name/appearance/race/faction services via GetServiceCost).
-    uint32 GetProgressionTierCost(uint8 tier)
+    // For generic tier purchases, retain a valid zero-price owner setting,
+    // but reject signed-money overflow rather than wrapping to a cheap price.
+    bool TryGetProgressionTierCost(uint8 tier, uint32& copper)
     {
-      std::string configOption = "CharacterServices.Cost.ProgressionTier." + std::to_string(tier);
-      // Default cost is tier-dependent; higher tiers cost more
-      uint32 defaultCost = 100 + (tier * 50);
-      return sConfigMgr->GetOption<uint32>(configOption, defaultCost) * 10000;
+      std::string const configOption = "CharacterServices.Cost.ProgressionTier." + std::to_string(tier);
+      uint32 const defaultGold = 100u + (static_cast<uint32>(tier) * 50u);
+      uint32 const gold = sConfigMgr->GetOption<uint32>(configOption, defaultGold);
+      return CharacterServicesMoneyPolicy::TryGoldToCopper(gold, true, copper);
     }
 
     uint32 GetServiceCost(Player* player, uint8 service)

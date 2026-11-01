@@ -1,0 +1,54 @@
+name: Character Services paid expansion vendor source contracts (DRAFT)
+
+on:
+  pull_request:
+    paths:
+      - 'src/CharacterServices.cpp'
+      - 'src/CharacterServicesMoneyPolicy.h'
+      - 'conf/character_services.conf.dist'
+      - 'docs/source-snapshots/**'
+      - 'tests/test_cs_paid_expansion_source.py'
+      - 'tests/character_services_money_policy.cpp'
+      - '.github/workflows/character-services-paid-expansion-draft.yml'
+  push:
+    paths:
+      - 'src/CharacterServices.cpp'
+      - 'src/CharacterServicesMoneyPolicy.h'
+      - 'conf/character_services.conf.dist'
+      - 'tests/test_cs_paid_expansion_source.py'
+      - 'tests/character_services_money_policy.cpp'
+      - '.github/workflows/character-services-paid-expansion-draft.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  offline-contracts:
+    name: Paid-era vendor source checks, NO Worldserver or database
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact PR commit
+        uses: actions/checkout@v4
+      - name: Execute disposable source-only regression checks
+        run: python3 -m unittest discover -s tests -p test_cs_paid_expansion_source.py -v
+      - name: Compile and execute money policy (GCC and Clang, C++17/C++20)
+        run: |
+          set -eu
+          for compiler in g++ clang++; do
+            for standard in c++17 c++20; do
+              output="$(mktemp)"
+              "$compiler" -std="$standard" -Wall -Wextra -Werror -pedantic -o "$output" tests/character_services_money_policy.cpp
+              "$output"
+              rm -f "$output"
+            done
+          done
+      - name: Ensure runtime and owner source snapshots stay separately located
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          assert Path('src/CharacterServices.cpp').is_file()
+          assert Path('docs/source-snapshots/CharacterServices-owner-20261101.cpp').is_file()
+          assert Path('docs/source-snapshots/character_services-owner-20261101.conf.dist').is_file()
+          print('Source snapshots retained; NO full Core/IP compilation or gameplay run by this job')
+          PY

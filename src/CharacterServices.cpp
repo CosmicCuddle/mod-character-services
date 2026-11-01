@@ -8,7 +8,7 @@
 #include "Chat.h"
 #include "ScriptedGossip.h"
 #include "IndividualProgression.h"
-#include <limits>
+#include "CharacterServicesMoneyPolicy.h"
 
 class CharacterServices : public CreatureScript
 {
@@ -27,10 +27,7 @@ class CharacterServices : public CreatureScript
         : "CharacterServices.ExpansionUnlock.Cost.TBCToWotLK";
       uint32 const fallbackGold = era == ExpansionEra::Tbc ? 1000u : 3000u;
       uint32 const gold = sConfigMgr->GetOption<uint32>(key, fallbackGold);
-      if (!gold || gold > static_cast<uint32>(std::numeric_limits<int32>::max() / 10000))
-        return false;
-      copper = gold * 10000;
-      return true;
+      return CharacterServicesMoneyPolicy::TryGoldToCopper(gold, false, copper);
     }
 
     bool OnGossipHello(Player* player, Creature* creature) override
@@ -498,10 +495,7 @@ class CharacterServices : public CreatureScript
       std::string const configOption = "CharacterServices.Cost.ProgressionTier." + std::to_string(tier);
       uint32 const defaultGold = 100u + (static_cast<uint32>(tier) * 50u);
       uint32 const gold = sConfigMgr->GetOption<uint32>(configOption, defaultGold);
-      if (gold > static_cast<uint32>(std::numeric_limits<int32>::max() / 10000))
-        return false;
-      copper = gold * 10000;
-      return true;
+      return CharacterServicesMoneyPolicy::TryGoldToCopper(gold, true, copper);
     }
 
     uint32 GetServiceCost(Player* player, uint8 service)

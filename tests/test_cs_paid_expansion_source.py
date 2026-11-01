@@ -51,7 +51,7 @@ class PaidExpansionSourceContracts(unittest.TestCase):
                    CPP.index("SendGossipMenuFor(")]
         self.assertIn("GetMaxServiceGrantableStage(player)", menu)
         validate = CPP[CPP.index("bool CanPurchaseProgressionTier("):
-                       CPP.index("void ApplyProgressionTierPurchase(")]
+                       CPP.index("bool ApplyProgressionTierPurchase(")]
         self.assertIn("GetMaxServiceGrantableStage(player)", validate)
         self.assertIn("newTier > sIndividualProgression->GetMaxServiceGrantableStage(player)", validate)
         selection = CPP[CPP.index("// Handle progression tier purchases (action IDs 100+)"):
@@ -101,7 +101,7 @@ class PaidExpansionSourceContracts(unittest.TestCase):
     def test_standard_upstream_safety_not_removed(self):
         self.assertIn("bool IsStandardServiceEnabled(", CPP)
         self.assertIn("bool CanPurchaseProgressionTier(", CPP)
-        self.assertIn("void ApplyProgressionTierPurchase(", CPP)
+        self.assertIn("bool ApplyProgressionTierPurchase(", CPP)
         self.assertIn("if (!IsStandardServiceEnabled(action))", CPP)
         self.assertIn("GetNextProgressionTier(currentTier)", CPP)
         self.assertIn("bool TryGetProgressionTierCost(", CPP)

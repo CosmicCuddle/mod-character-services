@@ -137,7 +137,7 @@ jobs:
             -DMODULES=static -DSCRIPTS=static \
             -DAPPS_BUILD=world-only -DTOOLS_BUILD=none \
             -DUSE_COREPCH=ON -DUSE_SCRIPTPCH=ON
-      - name: Assert both actual module C++ compilation units are in graph
+      - name: Assert all three actual module C++ compilation units are in graph
         run: |
           python3 - <<'PY'
           import json
@@ -159,7 +159,7 @@ jobs:
         run: |
           test -s acore-build/src/server/apps/worldserver
           test -x acore-build/src/server/apps/worldserver
-          echo 'PASS: pinned Core + PB + IP #28 paid/GM + Naxx #280 P1-P4/P4-H/F15 + Character Services #4 linked'
+          echo 'PASS: pinned Core + PB + IP #31 paid/GM/F19 + Naxx #283 P1-P4/P4-H/F15 raw archive + Character Services #4 linked'
           echo 'No owner host, accounts, DB, NPC, gold, config, enablement or live archive touched'
       - name: Safety and confidence boundary
         if: always()

@@ -56,7 +56,6 @@ class PaidExpansionSourceContracts(unittest.TestCase):
         shared_gate = CPP[CPP.index("static bool CanOfferProgressionTier("):
                           CPP.index("bool OnGossipHello(")]
         self.assertIn("GetMaxServiceGrantableStage(player)", shared_gate)
-        self.assertIn('!"CharacterServices.ExpansionUnlock.Enable"', '!"CharacterServices.ExpansionUnlock.Enable"') if False else None
         self.assertIn('return !sConfigMgr->GetOption<bool>("CharacterServices.ExpansionUnlock.Enable", false)', shared_gate)
         selection = CPP[CPP.index("// Handle progression tier purchases (action IDs 100+)"):
                         CPP.index("// Handle standard services (action IDs 1-4).")]

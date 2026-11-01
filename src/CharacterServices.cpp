@@ -198,8 +198,14 @@ class CharacterServices : public CreatureScript
           ChatHandler(player->GetSession()).PSendSysMessage("You do not have enough gold for this expansion.");
         else if (purchased == ExpansionResult::AlreadyOwned)
           ChatHandler(player->GetSession()).PSendSysMessage("You already own this expansion's access.");
+        else if (purchased == ExpansionResult::EntryUnavailable)
+          ChatHandler(player->GetSession()).PSendSysMessage("This purchase could not be completed. Check your gold and contact server staff if the balance changed.");
+        else if (purchased == ExpansionResult::FeatureInactive)
+          ChatHandler(player->GetSession()).PSendSysMessage("The expansion purchase service is unavailable. No purchase was processed.");
+        else if (purchased == ExpansionResult::BlockedByProgressionLimit)
+          ChatHandler(player->GetSession()).PSendSysMessage("This expansion is not yet available on the server.");
         else
-          ChatHandler(player->GetSession()).PSendSysMessage("You have not met the requirements to purchase this expansion, or the service is unavailable.");
+          ChatHandler(player->GetSession()).PSendSysMessage("You have not yet met the final progression requirements for this expansion.");
         CloseGossipMenuFor(player);
         return purchased == ExpansionResult::Success;
       }

@@ -123,6 +123,10 @@ class PaidExpansionSourceContracts(unittest.TestCase):
         self.assertIn('"CharacterServices.ExpansionUnlock.Enable", false', handler)
         self.assertIn("ExpansionResult::AlreadyOwned", handler)
         self.assertIn("ExpansionResult::InsufficientFunds", handler)
+        self.assertIn("ExpansionResult::EntryUnavailable", handler)
+        self.assertIn("contact server staff if the balance changed", handler)
+        self.assertIn("ExpansionResult::FeatureInactive", handler)
+        self.assertIn("ExpansionResult::BlockedByProgressionLimit", handler)
 
     def test_standard_upstream_safety_not_removed(self):
         self.assertIn("bool IsStandardServiceEnabled(", CPP)

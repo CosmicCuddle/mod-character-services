@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   pinned-paid-vendor-worldserver-link:
-    name: Core + Playerbots + IP#28 + Naxx#280 + Character Services exact-head Worldserver (NO LAUNCH)
+    name: Core + Playerbots + IP#31 + Naxx#283 + Character Services exact-head Worldserver (NO LAUNCH)
     runs-on: ubuntu-24.04
     timeout-minutes: 170
     steps:
@@ -36,18 +36,18 @@ jobs:
           ref: e88cc4099e69f35126b28942a412ca702d20453b
           path: acore/modules/mod-playerbots
           persist-credentials: false
-      - name: Checkout exact IP #28 combined paid/gm/warning development draft
+      - name: Checkout IP #31 combined paid/GM/warnings and default-OFF F19 floor
         uses: actions/checkout@v4
         with:
           repository: CosmicCuddle/mod-individual-progression
-          ref: 740a792da88ba3cbf8b0d0db74ce438266247fc2
+          ref: 6b67cb9c1fdbdb54cabd8e4f83a88236ee7ffd51
           path: acore/modules/mod-individual-progression
           persist-credentials: false
-      - name: Checkout exact Naxx #280 P1-P4/P4-H and read-only F15 tooling
+      - name: Checkout Naxx #283 P1-P4/P4-H with copy-only F15 archive and full regression
         uses: actions/checkout@v4
         with:
           repository: CosmicCuddle/Mod-Naxxramas-Core
-          ref: deebd7b68d2966ede6dc80a8da92d1351e4cb7eb
+          ref: 16314bf0a958266742ed9ce68598645d8cfcd173
           path: acore/modules/mod-naxxramas-core
           persist-credentials: false
       - name: Checkout exact Character Services development PR
@@ -62,8 +62,8 @@ jobs:
           set -euo pipefail
           test "$(git -C acore rev-parse HEAD)" = 8daffdabe9202c228e45d833c9a1d399597a15cd
           test "$(git -C acore/modules/mod-playerbots rev-parse HEAD)" = e88cc4099e69f35126b28942a412ca702d20453b
-          test "$(git -C acore/modules/mod-individual-progression rev-parse HEAD)" = 740a792da88ba3cbf8b0d0db74ce438266247fc2
-          test "$(git -C acore/modules/mod-naxxramas-core rev-parse HEAD)" = deebd7b68d2966ede6dc80a8da92d1351e4cb7eb
+          test "$(git -C acore/modules/mod-individual-progression rev-parse HEAD)" = 6b67cb9c1fdbdb54cabd8e4f83a88236ee7ffd51
+          test "$(git -C acore/modules/mod-naxxramas-core rev-parse HEAD)" = 16314bf0a958266742ed9ce68598645d8cfcd173
           test "$(git -C acore/modules/mod-character-services rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
           cs=acore/modules/mod-character-services
           ip=acore/modules/mod-individual-progression
@@ -86,6 +86,13 @@ jobs:
           # paid flags or granting a tier. Verify the specific reviewed blobs.
           test "$(git -C "$ip" rev-parse HEAD:src/cs_individualProgression.cpp)" = 278aaa48dc5fb7770bd6013e659e4872752d4b03
           test "$(git -C acore/modules/mod-naxxramas-core rev-parse HEAD:src/Systems/MasterLootQuestGive.h)" = dc1b9c1d53bfc6405187efb06a5425e4ffd9fd91
+          # Require the F14/F19 fix, P3 raw copy-only archive and strict OFF
+          # defaults from the newly integrated development source.
+          test "$(git -C "$ip" rev-parse HEAD:src/IndividualProgressionF14LoginPolicy.h)" = eb3e9d5c4ad7077b91174088bf4e7d44ce826517
+          grep -Fqx 'IndividualProgression.F14.PreserveVerifiedRandomBotStageOnLogin = 0' "$ip/conf/individualProgression.conf.dist"
+          test -s acore/modules/mod-naxxramas-core/scripts/f15_raw_archive.py
+          test -s acore/modules/mod-naxxramas-core/tests/test_f15_raw_archive.py
+          test -s acore/modules/mod-naxxramas-core/tests/test_f15_supervised_retention.py
           test -s acore/modules/mod-naxxramas-core/scripts/f15_retention_preview.py
           test -s acore/modules/mod-naxxramas-core/scripts/f15_supervised_storage_audit.py
           test -s "$cs/docs/source-snapshots/CharacterServices-owner-20261101.cpp"
@@ -130,7 +137,7 @@ jobs:
             -DMODULES=static -DSCRIPTS=static \
             -DAPPS_BUILD=world-only -DTOOLS_BUILD=none \
             -DUSE_COREPCH=ON -DUSE_SCRIPTPCH=ON
-      - name: Assert both actual module C++ compilation units are in graph
+      - name: Assert all three actual module C++ compilation units are in graph
         run: |
           python3 - <<'PY'
           import json
@@ -152,7 +159,7 @@ jobs:
         run: |
           test -s acore-build/src/server/apps/worldserver
           test -x acore-build/src/server/apps/worldserver
-          echo 'PASS: pinned Core + PB + IP #28 paid/GM + Naxx #280 P1-P4/P4-H/F15 + Character Services #4 linked'
+          echo 'PASS: pinned Core + PB + IP #31 paid/GM/F19 + Naxx #283 P1-P4/P4-H/F15 raw archive + Character Services #4 linked'
           echo 'No owner host, accounts, DB, NPC, gold, config, enablement or live archive touched'
       - name: Safety and confidence boundary
         if: always()

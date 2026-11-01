@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   pinned-paid-vendor-worldserver-link:
-    name: Core + Playerbots + IP#23 + Naxx + Character Services exact-head Worldserver (NO LAUNCH)
+    name: Core + Playerbots + IP#23 + Naxx#273 + Character Services exact-head Worldserver (NO LAUNCH)
     runs-on: ubuntu-24.04
     timeout-minutes: 170
     steps:
@@ -40,14 +40,14 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: CosmicCuddle/mod-individual-progression
-          ref: 42a21d6bd9bb91877105dd4cd6f45df814ceecdf
+          ref: 8dc16ffb3ca7f70a9c7ddc7cfbe6c5bd40088e37
           path: acore/modules/mod-individual-progression
           persist-credentials: false
-      - name: Checkout Naxx pinned historical compatibility module
+      - name: Checkout exact Naxx P1-P4 plus H1/H2/P4-H combined DRAFT #273
         uses: actions/checkout@v4
         with:
           repository: CosmicCuddle/Mod-Naxxramas-Core
-          ref: 80e9de1c39a6dc995188a80c31a5e785d0f2a6f9
+          ref: 090e2fb6f89c695f616411561d2fb2fb5f8f46c2
           path: acore/modules/mod-naxxramas-core
           persist-credentials: false
       - name: Checkout exact Character Services development PR
@@ -62,16 +62,26 @@ jobs:
           set -euo pipefail
           test "$(git -C acore rev-parse HEAD)" = 8daffdabe9202c228e45d833c9a1d399597a15cd
           test "$(git -C acore/modules/mod-playerbots rev-parse HEAD)" = e88cc4099e69f35126b28942a412ca702d20453b
-          test "$(git -C acore/modules/mod-individual-progression rev-parse HEAD)" = 42a21d6bd9bb91877105dd4cd6f45df814ceecdf
-          test "$(git -C acore/modules/mod-naxxramas-core rev-parse HEAD)" = 80e9de1c39a6dc995188a80c31a5e785d0f2a6f9
+          test "$(git -C acore/modules/mod-individual-progression rev-parse HEAD)" = 8dc16ffb3ca7f70a9c7ddc7cfbe6c5bd40088e37
+          test "$(git -C acore/modules/mod-naxxramas-core rev-parse HEAD)" = 090e2fb6f89c695f616411561d2fb2fb5f8f46c2
           test "$(git -C acore/modules/mod-character-services rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
           cs=acore/modules/mod-character-services
           ip=acore/modules/mod-individual-progression
           grep -Fqx 'CharacterServices.ExpansionUnlock.Enable = 0' "$cs/conf/character_services.conf.dist"
           grep -Fqx 'IndividualProgression.PaidExpansion.Enable = 0' "$ip/conf/individualProgression.conf.dist"
           grep -Fq 'PurchaseExpansion(Player* player' "$ip/src/IndividualProgression.h"
+          grep -Fq 'GetAccountEffectiveProgression(uint32 accountId)' "$ip/src/IndividualProgression.h"
+          grep -Fq 'GetAccountEffectiveProgression(uint32 accountId)' "$ip/src/IndividualProgressionExpansion.cpp"
+          grep -Fq 'AccountProgressionForTierService(' "$cs/src/CharacterServices.cpp"
           grep -Fqx '#define COSMIC_IP_PAID_EXPANSION_API_VERSION 1' "$ip/src/IndividualProgression.h"
           grep -Fq 'PurchaseExpansion(' "$cs/src/CharacterServices.cpp"
+          grep -Fq 'CharacterServicesGatePolicy::CanOfferGenericTier(' "$cs/src/CharacterServices.cpp"
+          grep -Fqx 'NaxxramasCore.MasterLootQuestGive.Enabled = 0' "acore/modules/mod-naxxramas-core/conf/mod_naxxramas_core.conf.dist"
+          grep -Fqx 'NaxxramasCore.QuestLootPickupAuthorization.Enabled = 0' "acore/modules/mod-naxxramas-core/conf/mod_naxxramas_core.conf.dist"
+          grep -Fqx 'NaxxramasCore.QuestLootSparkleGuard.Enabled = 0' "acore/modules/mod-naxxramas-core/conf/mod_naxxramas_core.conf.dist"
+          grep -Fqx 'NaxxramasCore.WarlockRitual.SecondStagePilot.Enabled = 0' "acore/modules/mod-naxxramas-core/conf/mod_naxxramas_core.conf.dist"
+          grep -Fq 'AddMasterLootQuestGiveScripts();' "acore/modules/mod-naxxramas-core/src/NaxxramasCore_loader.cpp"
+          test -f "acore/modules/mod-naxxramas-core/src/Systems/MasterLootQuestGive.cpp"
           test -s "$cs/docs/source-snapshots/CharacterServices-owner-20261101.cpp"
           test -s "$cs/docs/source-snapshots/character_services-owner-20261101.conf.dist"
           echo 'PASS: pinned source / OFF switches / separate historical owner snapshots'
@@ -122,7 +132,8 @@ jobs:
           cc=json.loads(Path('acore-build/compile_commands.json').read_text())
           for module,file in [
             ('mod-individual-progression','IndividualProgressionExpansion.cpp'),
-            ('mod-character-services','CharacterServices.cpp')
+            ('mod-character-services','CharacterServices.cpp'),
+            ('mod-naxxramas-core','Systems/MasterLootQuestGive.cpp')
           ]:
             hits=[entry for entry in cc
                   if entry.get('file','').replace('\\','/').endswith('/'+module+'/src/'+file)]
@@ -135,7 +146,7 @@ jobs:
         run: |
           test -s acore-build/src/server/apps/worldserver
           test -x acore-build/src/server/apps/worldserver
-          echo 'PASS: pinned Core + PB + IP paid entitlement + Naxx + Character Services linked'
+          echo 'PASS: pinned Core + PB + IP paid entitlement + Naxx #273 P1-P4/H1/H2/P4-H + Character Services #3 linked'
           echo 'No owner host, accounts, DB, NPC, gold, config, enablement or live archive touched'
       - name: Safety and confidence boundary
         if: always()

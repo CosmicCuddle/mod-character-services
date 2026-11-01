@@ -169,7 +169,7 @@ class CharacterServices : public CreatureScript
 
 #if defined(COSMIC_IP_PAID_EXPANSION_API_VERSION) && COSMIC_IP_PAID_EXPANSION_API_VERSION == 1
       // Expansion passage: ALWAYS delegate eligibility, debit and durable
-      // entitlement to IP. Do not call ForceUpdateProgressionState(14).
+      // entitlement to IP. Never grant Wrath first-raid completion (stage 14).
       if (action == 200 || action == 201)
       {
         if (!sConfigMgr->GetOption<bool>("CharacterServices.ExpansionUnlock.Enable", false) ||

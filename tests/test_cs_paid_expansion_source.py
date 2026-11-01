@@ -62,10 +62,32 @@ class PaidExpansionSourceContracts(unittest.TestCase):
     def test_price_conversion_is_bounded_and_not_dynamic(self):
         method = CPP[CPP.index("static bool GetExpansionCostCopper("):
                      CPP.index("bool OnGossipHello(")]
-        self.assertIn("std::numeric_limits<int32>::max() / 10000", method)
-        self.assertIn("copper = gold * 10000;", method)
-        self.assertIn("if (!gold ||", method)
+        self.assertIn("CharacterServicesMoneyPolicy::TryGoldToCopper(gold, false, copper)", method)
         self.assertNotIn("DynamicCost", method)
+        price = CPP[CPP.index("bool TryGetProgressionTierCost("):
+                    CPP.index("uint32 GetServiceCost(")]
+        self.assertIn("CharacterServicesMoneyPolicy::TryGoldToCopper(gold, true, copper)", price)
+        self.assertIn('#include "CharacterServicesMoneyPolicy.h"', CPP)
+
+    def test_generic_fee_overflow_and_preflight_are_fail_closed(self):
+        handler = CPP[CPP.index("// Handle progression tier purchases (action IDs 100+)"):
+                      CPP.index("// Handle standard services (action IDs 1-4).")]
+        self.assertIn("TryGetProgressionTierCost(tierToPurchase, cost)", handler)
+        self.assertIn("action < 101 || action > 118", handler)
+        self.assertIn("ModifyMoney(-static_cast<int32>(cost))", handler)
+        self.assertLess(handler.index("CanPurchaseProgressionTier("), handler.index("ModifyMoney("))
+        self.assertLess(handler.index("TryGetProgressionTierCost("), handler.index("ModifyMoney("))
+        self.assertIn("if (!granted)", handler)
+        self.assertIn("ModifyMoney(static_cast<int32>(cost))", handler)
+        validator = CPP[CPP.index("bool CanPurchaseProgressionTier("):
+                        CPP.index("bool ApplyProgressionTierPurchase(")]
+        self.assertIn("sObjectMgr->GetQuestTemplate(66000u + newTier)", validator)
+        self.assertIn("progressionLimit", validator)
+        grant = CPP[CPP.index("bool ApplyProgressionTierPurchase("):
+                    CPP.index("std::string GetTierIcon(")]
+        self.assertIn("UpdateProgressionState(", grant)
+        self.assertNotIn("ForceUpdateProgressionState(", grant)
+        self.assertIn("QUEST_STATUS_REWARDED", grant)
 
     def test_forged_sender_disabled_service_and_repeat_failure(self):
         handler = CPP[CPP.index("bool OnGossipSelect("):
@@ -82,6 +104,7 @@ class PaidExpansionSourceContracts(unittest.TestCase):
         self.assertIn("void ApplyProgressionTierPurchase(", CPP)
         self.assertIn("if (!IsStandardServiceEnabled(action))", CPP)
         self.assertIn("GetNextProgressionTier(currentTier)", CPP)
+        self.assertIn("bool TryGetProgressionTierCost(", CPP)
 
     def test_legacy_owner_files_remain_separate_and_unmodified_in_intent(self):
         self.assertIn("ForceUpdateProgressionState(player, static_cast<ProgressionState>(newTier))", LEGACY_CPP)

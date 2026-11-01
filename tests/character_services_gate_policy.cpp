@@ -2,6 +2,7 @@
 #include "../src/CharacterServicesGatePolicy.h"
 #include <cassert>
 #include <cstdint>
+#include <initializer_list>
 
 using CharacterServicesGatePolicy::CanOfferGenericTier;
 

@@ -118,8 +118,9 @@ class CharacterServices : public CreatureScript
             AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1,
               "|T" + tierIcon + ":50:50|tProgress to " + nextTierName,
               GOSSIP_SENDER_MAIN, 100 + nextTier, // Use 100 + tier as the action ID
-              "Purchase progression to: " + nextTierName,
-              tierCostCopper, false);
+              "Purchase progression to: " + nextTierName + " for " +
+                  std::to_string(tierCostCopper / 10000) + " gold. The service will charge on success.",
+              0u, false);
           // Invalid/overflowed configured tier price: no purchasable offer.
         }
         else if (currentTier < PROGRESSION_WOTLK_TIER_5) // Not at max, but nothing unlocked to buy yet

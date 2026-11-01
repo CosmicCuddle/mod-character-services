@@ -15,6 +15,10 @@ class CharacterServices : public CreatureScript
   public:
     CharacterServices() : CreatureScript("character_services") { }
 
+    // The vendor can still compile with historical IP without the paid API.
+    // In that mode passage is not offered, and an explicitly configured
+    // paid gate must deny generic tier sales instead of bypassing it.
+#if defined(COSMIC_IP_PAID_EXPANSION_API_VERSION) && COSMIC_IP_PAID_EXPANSION_API_VERSION == 1
     using ExpansionEra = IndividualProgressionExpansionPolicy::Era;
     using ExpansionResult = IndividualProgressionExpansionPolicy::PurchaseResult;
 
@@ -28,6 +32,21 @@ class CharacterServices : public CreatureScript
       uint32 const fallbackGold = era == ExpansionEra::Tbc ? 1000u : 3000u;
       uint32 const gold = sConfigMgr->GetOption<uint32>(key, fallbackGold);
       return CharacterServicesMoneyPolicy::TryGoldToCopper(gold, false, copper);
+    }
+#endif
+
+    static bool CanOfferProgressionTier(Player* player, uint8 nextTier)
+    {
+#if defined(COSMIC_IP_PAID_EXPANSION_API_VERSION) && COSMIC_IP_PAID_EXPANSION_API_VERSION == 1
+      return !sIndividualProgression->IsPaidExpansionActive() ||
+             nextTier <= sIndividualProgression->GetMaxServiceGrantableStage(player);
+#else
+      (void)player;
+      (void)nextTier;
+      // If a vendor config requests paid expansion under old IP, fail closed
+      // instead of allowing legacy generic tier sales to cross the era.
+      return !sConfigMgr->GetOption<bool>("CharacterServices.ExpansionUnlock.Enable", false);
+#endif
     }
 
     bool OnGossipHello(Player* player, Creature* creature) override
@@ -54,6 +73,7 @@ class CharacterServices : public CreatureScript
       if (sConfigMgr->GetOption<bool>("CharacterServices.FactionChange.Enable", false))
         AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1, "|TInterface/Icons/inv_bannerpvp_03:50:50|tChange My Faction", GOSSIP_SENDER_MAIN, 4, "Confirm Faction Change.", GetServiceCost(player, 4), false);
       
+#if defined(COSMIC_IP_PAID_EXPANSION_API_VERSION) && COSMIC_IP_PAID_EXPANSION_API_VERSION == 1
       // The owner must BOTH complete the prior era AND pay Vezrath.
       // The IP entitlement module performs the eligibility and money checks.
       // This source requires IP's DRAFT paid-expansion API, default OFF.
@@ -85,6 +105,7 @@ class CharacterServices : public CreatureScript
         }
       }
 
+#endif
       // Add progression tier purchase option if enabled
       if (sConfigMgr->GetOption<bool>("CharacterServices.ProgressionTier.Enable", false))
       {
@@ -107,8 +128,7 @@ class CharacterServices : public CreatureScript
 
         // Only offer if the account has unlocked the next tier and the player is not at max progression
         if (currentTier < PROGRESSION_WOTLK_TIER_5 && nextTier <= accountMaxTier &&
-            (!sIndividualProgression->IsPaidExpansionActive() ||
-             nextTier <= sIndividualProgression->GetMaxServiceGrantableStage(player)))
+            CanOfferProgressionTier(player, nextTier))
         {
           std::string nextTierName = GetProgressionTierName(nextTier);
           std::string tierIcon = GetTierIcon(nextTier);
@@ -147,6 +167,7 @@ class CharacterServices : public CreatureScript
         return false;
       }
 
+#if defined(COSMIC_IP_PAID_EXPANSION_API_VERSION) && COSMIC_IP_PAID_EXPANSION_API_VERSION == 1
       // Expansion passage: ALWAYS delegate eligibility, debit and durable
       // entitlement to IP. Do not call ForceUpdateProgressionState(14).
       if (action == 200 || action == 201)
@@ -183,6 +204,15 @@ class CharacterServices : public CreatureScript
         return purchased == ExpansionResult::Success;
       }
 
+#else
+      // Historical IP lacks durable entitlement/payment API. Always deny
+      // forged passage selection; never fall back to ForceUpdate(8/14).
+      if (action == 200 || action == 201)
+      {
+        CloseGossipMenuFor(player);
+        return false;
+      }
+#endif
       // Handle progression tier purchases (action IDs 100+)
       if (action >= 100)
       {
@@ -340,8 +370,7 @@ class CharacterServices : public CreatureScript
 
       // A higher-level account or forged generic gossip action must never
       // grant another era's entry OR final boss milestone on the paid path.
-      if (sIndividualProgression->IsPaidExpansionActive() &&
-          newTier > sIndividualProgression->GetMaxServiceGrantableStage(player))
+      if (!CanOfferProgressionTier(player, newTier))
       {
         ChatHandler(player->GetSession()).PSendSysMessage(
             "You must finish the current era and purchase the next expansion from Chronomancer Vezrath.");

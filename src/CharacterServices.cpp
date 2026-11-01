@@ -36,6 +36,19 @@ class CharacterServices : public CreatureScript
     }
 #endif
 
+    // The old account maximum uses rewarded quest markers only. Under paid
+    // progression, raw stage 13 is *eligibility* for Wrath, not ownership.
+    // The updated IP API reads the actual durable entitlement per character.
+    // With the feature OFF, its account ceiling is identical to legacy IP.
+    static uint8 AccountProgressionForTierService(uint32 accountId)
+    {
+#if defined(COSMIC_IP_PAID_EXPANSION_API_VERSION) && COSMIC_IP_PAID_EXPANSION_API_VERSION == 1
+      return sIndividualProgression->GetAccountEffectiveProgression(accountId);
+#else
+      return sIndividualProgression->GetAccountProgression(accountId);
+#endif
+    }
+
     static bool CanOfferProgressionTier(Player* player, uint8 nextTier)
     {
 #if defined(COSMIC_IP_PAID_EXPANSION_API_VERSION) && COSMIC_IP_PAID_EXPANSION_API_VERSION == 1
@@ -122,7 +135,7 @@ class CharacterServices : public CreatureScript
         // highest achieved tier. When false, any character may buy up to the top tier
         // without another character having unlocked it first.
         uint8 accountMaxTier = requireAccountUnlock
-          ? sIndividualProgression->GetAccountProgression(player->GetSession()->GetAccountId())
+          ? AccountProgressionForTierService(player->GetSession()->GetAccountId())
           : PROGRESSION_WOTLK_TIER_5;
 
         // If MaxApplicableTier is set (non-zero), use it as a cap on the account's max tier
@@ -363,7 +376,7 @@ class CharacterServices : public CreatureScript
       // When RequireAccountUnlock is true (default), cap purchases at the account's
       // highest achieved tier. When false, the only ceiling is MaxApplicableTier (below).
       uint8 accountMaxTier = requireAccountUnlock
-        ? sIndividualProgression->GetAccountProgression(player->GetSession()->GetAccountId())
+        ? AccountProgressionForTierService(player->GetSession()->GetAccountId())
         : PROGRESSION_WOTLK_TIER_5;
 
       // Cap the account's max tier by the configured maximum, if any

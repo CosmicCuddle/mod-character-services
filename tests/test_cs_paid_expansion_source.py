@@ -38,6 +38,14 @@ class PaidExpansionSourceContracts(unittest.TestCase):
         self.assertNotIn("ModifyMoney(", handler)
         self.assertNotIn("ForceUpdateProgressionState(", handler)
 
+    def test_expansion_gossip_price_does_not_charge_at_core_layer(self):
+        block = CPP[CPP.index("// The owner must BOTH complete"):
+                    CPP.index("// Add progression tier purchase option if enabled")]
+        # The gossip item displays the price text but reports zero money to
+        # the core: IP PurchaseExpansion is the sole charging authority.
+        self.assertIn("std::to_string(copper / 10000)", block)
+        self.assertEqual(block.count("0u, false);"), 2)
+
     def test_generic_tiers_guarded_before_debit(self):
         menu = CPP[CPP.index("// Add progression tier purchase option if enabled"):
                    CPP.index("SendGossipMenuFor(")]

@@ -72,8 +72,8 @@ class CharacterServices : public CreatureScript
             AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1,
                 "|TInterface/Icons/achievement_dungeon_karazhan:50:50|tUnlock The Burning Crusade",
                 GOSSIP_SENDER_MAIN, 200,
-                "Purchase access to The Burning Crusade (gold is charged only by the IP service).",
-                copper, false);
+                "Confirm TBC passage for " + std::to_string(copper / 10000) + " gold. IP will handle the payment.",
+                0u, false);
         }
         if (GetExpansionCostCopper(ExpansionEra::Wrath, copper))
         {
@@ -83,8 +83,8 @@ class CharacterServices : public CreatureScript
             AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1,
                 "|TInterface/Icons/achievement_boss_kelthuzad_01:50:50|tUnlock Wrath of the Lich King",
                 GOSSIP_SENDER_MAIN, 201,
-                "Purchase access to Wrath of the Lich King (no Wrath raid tier is awarded).",
-                copper, false);
+                "Confirm Wrath passage for " + std::to_string(copper / 10000) + " gold. IP will handle the payment.",
+                0u, false);
         }
       }
 

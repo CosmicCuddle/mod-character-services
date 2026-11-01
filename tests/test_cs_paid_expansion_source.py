@@ -88,6 +88,26 @@ class PaidExpansionSourceContracts(unittest.TestCase):
         self.assertIn("CharacterServicesMoneyPolicy::TryGoldToCopper(gold, true, copper)", price)
         self.assertIn('#include "CharacterServicesMoneyPolicy.h"', CPP)
 
+    def test_paid_effective_account_ceiling_is_shared_by_menu_and_predebit(self):
+        # A paid character on this account must not use a different account
+        # member's unpaid raw-13 earned quest to buy across an era boundary.
+        helper = CPP[CPP.index("static uint8 AccountProgressionForTierService("):
+                     CPP.index("static bool CanOfferProgressionTier(")]
+        self.assertIn("GetAccountEffectiveProgression(accountId)", helper)
+        self.assertIn("GetAccountProgression(accountId)", helper)
+        self.assertIn("COSMIC_IP_PAID_EXPANSION_API_VERSION == 1", helper)
+        self.assertEqual(CPP.count(
+            "AccountProgressionForTierService(player->GetSession()->GetAccountId())"), 2)
+        self.assertNotIn(
+            "sIndividualProgression->GetAccountProgression(player->GetSession()->GetAccountId())", CPP)
+        menu = CPP[CPP.index("// Add progression tier purchase option if enabled"):
+                   CPP.index("SendGossipMenuFor(")]
+        validator = CPP[CPP.index("bool CanPurchaseProgressionTier("):
+                        CPP.index("bool ApplyProgressionTierPurchase(")]
+        self.assertIn("AccountProgressionForTierService(", menu)
+        self.assertIn("AccountProgressionForTierService(", validator)
+        self.assertIn("!CanOfferProgressionTier(player, newTier)", validator)
+
     def test_generic_menu_has_no_second_gossip_debit(self):
         block = CPP[CPP.index("// Add progression tier purchase option if enabled"):
                     CPP.index("SendGossipMenuFor(")]

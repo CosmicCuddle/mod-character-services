@@ -130,7 +130,7 @@ jobs:
           for module,file in [
             ('mod-individual-progression','IndividualProgressionExpansion.cpp'),
             ('mod-character-services','CharacterServices.cpp'),
-            ('mod-naxxramas-core','MasterLootQuestGive.cpp')
+            ('mod-naxxramas-core','Systems/MasterLootQuestGive.cpp')
           ]:
             hits=[entry for entry in cc
                   if entry.get('file','').replace('\\','/').endswith('/'+module+'/src/'+file)]

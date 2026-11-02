@@ -118,3 +118,34 @@ The disposable Character Services joint native link workflow now pins the **corr
 | Files/dependencies | New native CI workflow, memo, this append-only register; pinned Core `8daffdabe`, Playerbots `e88cc409`, Naxx #286 `edbed193`, Services vendor inherited. Core source patch only applied inside disposable runner. No SQL/client/DBC or live Core fork. |
 | Tests/risk | Native CI status not verified when authored. Protected Core fake-DB test separately pending independent reviewer. Real MySQL, mixed-module writes, pdump, migration, gameplay and owner host remain blockers. |
 | Rollback | Close/discard isolated CI-only draft, retaining Services #9 and earlier successful #8. No production system modified. |
+
+## CS-CI-IP42-NAXX289 — cross-module safety build, 2 November 2026
+
+**Owner:** CosmicCuddle. **Kind:** CI/workflow only, separate DRAFT child of
+Character Services #10 at `57d40bb3c669a54e309623d1b5e24af484ab03f9`.
+**Intended behaviour:** build *real* linked Worldserver on disposable GitHub
+runner using exactly Grimfeather Core
+`8daffdabe9202c228e45d833c9a1d399597a15cd`,
+Playerbots `e88cc409e69f35126b28942a412ca702d20453b`,
+Individual Progression **DRAFT #42** `c6e28634beb77258a2b590606595736e45e81993`,
+Naxxramas-Core **DRAFT #289**
+`76dd1721ea88c637f46b6b3218d076304dd55d21`,
+and the inherited Character Services #10 source, including the exact
+two-file Core malformed-paid-row runner-only patch and two already
+documented old-Core Playerbots compatibility edits. Each source SHA is
+verified before compilation; the paid-fork API, 10259 client packet guard,
+existing Character Services source, Naxx P3/P4 registrations, preserved
+original owner snapshots and disabled paid/P4 flags are asserted.
+
+**Affected file:** `.github/workflows/character-services-core-dualfile-ip42-naxx289-joint-native-20261102.yml`.
+**Dependencies:** historical Core+Playerbots pin, IP/Services exact paid API
+and receipt patch, Naxx P1–P4/P3 module loader, Ubuntu 24.04 packages,
+original source CI recipe inherited from #10. **Risks:** upstream Core/PB
+mismatch beyond historical runner-only changes, runtime rewards outside
+normal client opcode remain unsupported, nominal compiled link does NOT
+prove Worldserver start, DB schema, payment, server ownership or gameplay.
+**Tests:** hosted Actions exact-head real Worldserver CMake/compile/link;
+report actual result after completion. **Live status:** not installed,
+no config/SQL/DBC/character/host changes, flags default OFF.
+**Rollback:** close/discard this isolated CI-only draft; retain #10 and
+all original custom features and source pins. No deployment authorisation.

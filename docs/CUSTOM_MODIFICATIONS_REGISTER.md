@@ -95,3 +95,13 @@ The disposable Character Services joint native link workflow now pins the **corr
 | Compatibility / safety | Retains only existing two disposable runner PB edits and exact OFF flags; no runtime code, config, SQL, DBC, client, quests, gold, archive or owner host changes. Latest pin is NOT owner-installed evidence. |
 | Tests | Hosted native workflow run not yet verified, no gameplay. Check exact CI run SHA and complete link before claiming PASS. |
 | Rollback / live state | DRAFT only, feature OFF; discard child to return unchanged Services #7. No merge/live server action without CosmicCuddle permission. |
+
+### SERVICES-IP38-CORE-RAW-PRESERVE-NATIVE-20261102 — patched Core/receipt combined build (CI-only DRAFT)
+
+| Field | Record |
+| --- | --- |
+| Owner/source | CosmicCuddle / CS01. CI/docs-only child of Services #8 `236de545`, immutable IP #38 `1814e448`, Naxx #286 `edbed193`, Grimfeather Core `8daffdabe`, PB `e88cc409`; Services vendor #7 inherited. |
+| Intended behaviour | Test actual Worldserver link with a one-file Core settings-row no-launder patch applied **only on a disposable CI checkout**, strict v1 IP raw ledger login/account/purchase and existing cross-module sources. All paid switches OFF. |
+| Affected files | New `.github/workflows/character-services-core-paid-row-ip38-naxx286-joint-native-20261102.yml`, memo, this register append. No runtime, SQL, DBC, client, config or owner Core changes. |
+| Risks/tests | Source pin and patch blob checked; untrusted malformed raw records must remain untouched. Actual new-head CI not verified at creation; no gameplay, DB, receipts, owner host, archive/live operations. Other direct Core settings writers, transfer, bootstrap remain blockers. |
+| Rollback | Discard isolated CI/docs PR. Require owner-controlled Core fork, restorable backups, full staging and explicit deployment approval before any live application. |

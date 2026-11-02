@@ -105,3 +105,6 @@ The disposable Character Services joint native link workflow now pins the **corr
 | Affected files | New `.github/workflows/character-services-core-paid-row-ip38-naxx286-joint-native-20261102.yml`, memo, this register append. No runtime, SQL, DBC, client, config or owner Core changes. |
 | Risks/tests | Source pin and patch blob checked; untrusted malformed raw records must remain untouched. Actual new-head CI not verified at creation; no gameplay, DB, receipts, owner host, archive/live operations. Other direct Core settings writers, transfer, bootstrap remain blockers. |
 | Rollback | Discard isolated CI/docs PR. Require owner-controlled Core fork, restorable backups, full staging and explicit deployment approval before any live application. |
+
+
+**SERVICES-IP38-CORE-RAW-PRESERVE-NATIVE-20261102 exact tuple update:** New native CI workflow pins IP #38 `bd44c18063f313e2ed605ca85d9a86e6614036dc` (first version `1814e44855aa77de97aabe17f83014d2af99e040` is historical). Same Core source pin/patch and other module versions. Source-only test and documentation changes are not gameplay/host proof; do not attribute earlier native run 41436349871 to this newer pin.

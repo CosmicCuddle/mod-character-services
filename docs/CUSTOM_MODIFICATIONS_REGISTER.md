@@ -108,3 +108,13 @@ The disposable Character Services joint native link workflow now pins the **corr
 
 
 **SERVICES-IP38-CORE-RAW-PRESERVE-NATIVE-20261102 exact tuple update:** New native CI workflow pins IP #38 `bd44c18063f313e2ed605ca85d9a86e6614036dc` (first version `1814e44855aa77de97aabe17f83014d2af99e040` is historical). Same Core source pin/patch and other module versions. Source-only test and documentation changes are not gameplay/host proof; do not attribute earlier native run 41436349871 to this newer pin.
+
+### SERVICES-IP39-CORE-DUALFILE-20261102 — two-file Core malformed paid-row native test (DRAFT)
+
+| Field | Record |
+| --- | --- |
+| Owner/source | CosmicCuddle / CS01 Maintenance. CI-only child of Services #9 at `469e316080ba77e3569b8e230229d1fd764f78f3`, pinned IP #39 `064c20a42b10db472ac9017770e2b4c89ec98883`. |
+| Behaviour | Validate native Worldserver build with Core `PlayerSettings.cpp` and `Player.h` guard for corrupted `ip_paid_expansion` row. Prevent implicit getter/direct setter overwrites, preserving raw evidence. Does not change other settings or feature defaults. |
+| Files/dependencies | New native CI workflow, memo, this append-only register; pinned Core `8daffdabe`, Playerbots `e88cc409`, Naxx #286 `edbed193`, Services vendor inherited. Core source patch only applied inside disposable runner. No SQL/client/DBC or live Core fork. |
+| Tests/risk | Native CI status not verified when authored. Protected Core fake-DB test separately pending independent reviewer. Real MySQL, mixed-module writes, pdump, migration, gameplay and owner host remain blockers. |
+| Rollback | Close/discard isolated CI-only draft, retaining Services #9 and earlier successful #8. No production system modified. |

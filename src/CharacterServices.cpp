@@ -96,7 +96,7 @@ class CharacterServices : public CreatureScript
       if (sConfigMgr->GetOption<bool>("CharacterServices.FactionChange.Enable", false) &&
           TryGetStandardServiceCost(player, 4, standardServiceCopper))
         AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1, "|TInterface/Icons/inv_bannerpvp_03:50:50|tChange My Faction", GOSSIP_SENDER_MAIN, 4, "Confirm Faction Change.", standardServiceCopper, false);
-      
+
 #if defined(COSMIC_IP_PAID_EXPANSION_API_VERSION) && COSMIC_IP_PAID_EXPANSION_API_VERSION == 1
       // The owner must BOTH complete the prior era AND pay Vezrath.
       // The IP entitlement module performs the eligibility and money checks.

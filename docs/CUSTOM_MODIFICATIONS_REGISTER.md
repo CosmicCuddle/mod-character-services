@@ -84,3 +84,14 @@ The disposable Character Services joint native link workflow now pins the **corr
 - **New actual code:** per-service `TryGetStandardServiceCost` validates configured gold and dynamic-level calculation before either a client gossip fee is offered or the server debits money. A pure helper retains the original double-based /80 dynamic cost rounding for valid signed amounts, default 25/50/100/250 gold, and deliberately configured ZERO-cost services. Misconfigured fee becomes an unavailable offer / error rather than a wrapped price. Existing enabled actions 1–4 and their at-login flags are untouched. A single `ModifyMoney(-static_cast<int32>(cost))` is used after server-side fee validation.
 - **Automated checks:** executable C++17/C++20 GCC/Clang policy checks (historic default/dynamic parity, zero/free, max signed, 429497g wrap attempt, level-over-80 guard) and source checks proving menu AND pre-debit both use the same validation. All test results require exact-head runner confirmation; native Worldserver + actual gossip, fee persistence and client regressions still unverified.
 - **Ownership/status/rollback:** CS01, isolated stacked DRAFT `fix/cs01-standard-service-money-overflow-20261101` on Character Services #3 parent HEAD `585aa643cc0bc4f4d73ed8234c929201b7d8e200`. No merges, server config, installed prices, SQL, accounts or world operations. Roll back only this source/test change on the development branch; keep service OFF if its configured price is invalid and obtain owner review before activating a changed binary.
+
+### SERVICES-CORE286-IP34-LINK-20261102 — latest cross-fork native composition (CI-only DRAFT)
+
+| Field | Record |
+| --- | --- |
+| Owner / scope | CosmicCuddle; CS01 Maintenance isolated Services #7 child, new CI-only workflow plus memo; original vendor, parent workflows and installed realm unchanged. |
+| Intended behaviour | Independently compile/link immutable Core/PB/IP/Services source tuple at Core #286, IP #34 and Services #7, all paid and experimental switches default OFF. Never run the Worldserver. |
+| Affected files / pins | New `.github/workflows/character-services-core286-ip34-joint-native-20261102.yml` pinned Core `8daffdabe`, Playerbots `e88cc409`, IP `5ee5fc48262dd9b7cb1e5abd7f0673cdc0e6abc5`, Naxx `edbed1937ab9312cbef24309845595cdb2ccf8fe`, Services exact PR HEAD. New `docs/CS-IP34-NAXX286-JOINT-NATIVE-GATE-20261102.md`; append register. |
+| Compatibility / safety | Retains only existing two disposable runner PB edits and exact OFF flags; no runtime code, config, SQL, DBC, client, quests, gold, archive or owner host changes. Latest pin is NOT owner-installed evidence. |
+| Tests | Hosted native workflow run not yet verified, no gameplay. Check exact CI run SHA and complete link before claiming PASS. |
+| Rollback / live state | DRAFT only, feature OFF; discard child to return unchanged Services #7. No merge/live server action without CosmicCuddle permission. |

@@ -40,7 +40,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: CosmicCuddle/mod-individual-progression
-          ref: fc45c833a2c6c65c7ed18c63158e9dc09f757a3a
+          ref: 0dae9d256f3f0f6a57812c8da5c6d9daafdb0232
           path: acore/modules/mod-individual-progression
           persist-credentials: false
       - name: Checkout Naxx #292 P1-P4/P4-H + Hunter ammo/quiver + F15 path redaction
@@ -62,7 +62,7 @@ jobs:
           set -euo pipefail
           test "$(git -C acore rev-parse HEAD)" = 8daffdabe9202c228e45d833c9a1d399597a15cd
           test "$(git -C acore/modules/mod-playerbots rev-parse HEAD)" = e88cc4099e69f35126b28942a412ca702d20453b
-          test "$(git -C acore/modules/mod-individual-progression rev-parse HEAD)" = fc45c833a2c6c65c7ed18c63158e9dc09f757a3a
+          test "$(git -C acore/modules/mod-individual-progression rev-parse HEAD)" = 0dae9d256f3f0f6a57812c8da5c6d9daafdb0232
           test "$(git -C acore/modules/mod-naxxramas-core rev-parse HEAD)" = c36962895e862af81ac23753c1bdc91f092ea53d
           test "$(git -C acore/modules/mod-character-services rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
           cs=acore/modules/mod-character-services
@@ -116,7 +116,7 @@ jobs:
           test "$(git -C acore/modules/mod-naxxramas-core rev-parse HEAD:src/Systems/MasterLootQuestGive.h)" = dc1b9c1d53bfc6405187efb06a5425e4ffd9fd91
           # Require the F14/F19 fix, P3 raw copy-only archive and strict OFF
           # defaults from the newly integrated development source.
-          test "$(git -C "$ip" rev-parse HEAD:src/IndividualProgressionF14LoginPolicy.h)" = 936278391e42036fbecfbd7d4ac63e415c37a60c
+          test "$(git -C "$ip" rev-parse HEAD:src/IndividualProgressionF14LoginPolicy.h)" = 1322be33a2cd306445fb94f5759b4151fe705a99
           grep -Fqx 'IndividualProgression.F14.PreserveVerifiedRandomBotStageOnLogin = 0' "$ip/conf/individualProgression.conf.dist"
           # Integrated IP #46 adds an independent skip-only RandomBot group
           # safeguard. This is incomplete F14 and MUST remain opt-in/OFF.

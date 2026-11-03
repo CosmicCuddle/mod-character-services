@@ -1,4 +1,4 @@
-name: Core protected RAW paid ledger + IP43 + Naxx291 + Services10 Worldserver (DRAFT)
+name: Core protected RAW paid ledger + IP43 + Naxx292 + Services10 Worldserver (DRAFT)
 
 on:
   pull_request:
@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   pinned-paid-vendor-worldserver-link:
-    name: Core paid receipt + PB + IP43 + Naxx291 + Services10 Worldserver (NO LAUNCH)
+    name: Core paid receipt + PB + IP43 + Naxx292 + Services10 Worldserver (NO LAUNCH)
     runs-on: ubuntu-24.04
     timeout-minutes: 170
     steps:
@@ -43,11 +43,11 @@ jobs:
           ref: 8d78f2bda41e618ed51d2892e2588d9c891d89ac
           path: acore/modules/mod-individual-progression
           persist-credentials: false
-      - name: Checkout Naxx #291 P1-P4/P4-H + F15 path redaction
+      - name: Checkout Naxx #292 P1-P4/P4-H + Hunter ammo/quiver + F15 path redaction
         uses: actions/checkout@v4
         with:
           repository: CosmicCuddle/Mod-Naxxramas-Core
-          ref: 3d93d6503dab32026959e0662d3b2978585c83f6
+          ref: c36962895e862af81ac23753c1bdc91f092ea53d
           path: acore/modules/mod-naxxramas-core
           persist-credentials: false
       - name: Checkout exact Character Services development PR
@@ -63,7 +63,7 @@ jobs:
           test "$(git -C acore rev-parse HEAD)" = 8daffdabe9202c228e45d833c9a1d399597a15cd
           test "$(git -C acore/modules/mod-playerbots rev-parse HEAD)" = e88cc4099e69f35126b28942a412ca702d20453b
           test "$(git -C acore/modules/mod-individual-progression rev-parse HEAD)" = 8d78f2bda41e618ed51d2892e2588d9c891d89ac
-          test "$(git -C acore/modules/mod-naxxramas-core rev-parse HEAD)" = 3d93d6503dab32026959e0662d3b2978585c83f6
+          test "$(git -C acore/modules/mod-naxxramas-core rev-parse HEAD)" = c36962895e862af81ac23753c1bdc91f092ea53d
           test "$(git -C acore/modules/mod-character-services rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
           cs=acore/modules/mod-character-services
           ip=acore/modules/mod-individual-progression
@@ -97,6 +97,16 @@ jobs:
           grep -Fqx 'NaxxramasCore.MasterLootQuestGive.Enabled = 0' "acore/modules/mod-naxxramas-core/conf/mod_naxxramas_core.conf.dist"
           grep -Fqx 'NaxxramasCore.QuestLootPickupAuthorization.Enabled = 0' "acore/modules/mod-naxxramas-core/conf/mod_naxxramas_core.conf.dist"
           grep -Fqx 'NaxxramasCore.QuestLootSparkleGuard.Enabled = 0' "acore/modules/mod-naxxramas-core/conf/mod_naxxramas_core.conf.dist"
+          # Combined #292 includes owner-approved P2 legal vendor fallback,
+          # rare Doomshot allotment and Molten Core equipped quiver draft.
+          # Every new opt-in remains OFF in the distributed config.
+          grep -Fqx 'NaxxramasCore.BotConsumables.HunterAmmo.Enabled = 0' "acore/modules/mod-naxxramas-core/conf/mod_naxxramas_core.conf.dist"
+          grep -Fqx 'NaxxramasCore.BotConsumables.HunterAmmo.AllowSelectedNonVendor = 0' "acore/modules/mod-naxxramas-core/conf/mod_naxxramas_core.conf.dist"
+          grep -Fqx 'NaxxramasCore.BotConsumables.HunterAmmo.AllowOneDoomshotAllocation = 0' "acore/modules/mod-naxxramas-core/conf/mod_naxxramas_core.conf.dist"
+          grep -Fqx 'NaxxramasCore.BotConsumables.HunterAmmo.MoltenCore.FillQuiver.Enabled = 0' "acore/modules/mod-naxxramas-core/conf/mod_naxxramas_core.conf.dist"
+          test -s acore/modules/mod-naxxramas-core/src/Systems/HunterAmmoProvision.cpp
+          test -s acore/modules/mod-naxxramas-core/tests/test_hunter_ammo_consumables.py
+
           grep -Fqx 'NaxxramasCore.WarlockRitual.SecondStagePilot.Enabled = 0' "acore/modules/mod-naxxramas-core/conf/mod_naxxramas_core.conf.dist"
           grep -Fq 'AddMasterLootQuestGiveScripts();' "acore/modules/mod-naxxramas-core/src/NaxxramasCore_loader.cpp"
           test -f "acore/modules/mod-naxxramas-core/src/Systems/MasterLootQuestGive.cpp"
@@ -216,7 +226,7 @@ jobs:
         run: |
           test -s acore-build/src/server/apps/worldserver
           test -x acore-build/src/server/apps/worldserver
-          echo 'PASS: pinned Core + PB + IP #43 paid/GM/F19/10259 packet + scoped Core raw-row guard + Naxx #291 P1-P4/P4-H/F15 + Character Services #7 linked'
+          echo 'PASS: pinned Core + PB + IP #43 paid/GM/F19/10259 packet + scoped Core raw-row guard + Naxx #292 P1-P4/P4-H/P2 quiver/F15 + Character Services linked'
           echo 'No owner host, accounts, DB, NPC, gold, config, enablement or live archive touched'
       - name: Safety and confidence boundary
         if: always()

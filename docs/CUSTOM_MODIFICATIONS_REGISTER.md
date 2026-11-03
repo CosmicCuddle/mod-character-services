@@ -149,3 +149,33 @@ report actual result after completion. **Live status:** not installed,
 no config/SQL/DBC/character/host changes, flags default OFF.
 **Rollback:** close/discard this isolated CI-only draft; retain #10 and
 all original custom features and source pins. No deployment authorisation.
+
+
+## CS-CI-IP42-NAXX291 — updated cross-module build after owner H2 false sparkle
+
+**Owner:** CosmicCuddle. **Status:** DRAFT/unmerged, CI-only.
+**Expected behavior:** compile and link the real pinned Grimfeather Worldserver
+against historical Core `8daffdabe9202c228e45d833c9a1d399597a15cd`,
+existing historical Playerbots `e88cc4099e69f35126b28942a412ca702d20453b`
+(with original CI-runner-only compatibility edits), IP #42
+`c6e28634beb77258a2b590606595736e45e81993`,
+Naxxramas-Core **#291** `3d93d6503dab32026959e0662d3b2978585c83f6`,
+and Character Services original parent #10 from #12.
+This child replaces the Naxx #289 pin in a **new** workflow, preserving #12
+and its successful original 5-module native build unchanged.
+
+**Affected file:** `.github/workflows/character-services-core-dualfile-ip42-naxx291-joint-native-20261103.yml`.
+**Dependencies:** paid IP/Services ABI and strict default-OFF receipt safeguards,
+Naxx H1/H2 shared quest-turn predicate, old Core packet hook, PB module,
+Core two-file RAW paid row patch retained exactly as CI-runner-only source,
+and unchanged original owner snapshots. No new SQL/DBC/client patch.
+**Risks:** no source-matched owner-installed binary guarantee, potential
+map-thread H1 predicate behavior, true quest-855 corpse sparkle not gameplay
+tested, Core GM direct `RewardQuest` still bypasses IP packet guard, paid
+first-use missing row and legacy setting migration still owner-dependent.
+**Tests:** pinned real Worldserver compile/link only; assert exact source
+heads, H1/H2 paid default-OFF settings, original snapshots, no new
+gameplay/data writes. Hosted Actions verdict must be recorded separately.
+**Live:** not installed. **Rollback:** abandon this isolated CI-only
+branch/PR; earlier successful Services #12 remains available. No merge or
+live deployment approval.

@@ -40,7 +40,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: CosmicCuddle/mod-individual-progression
-          ref: c0c04574623360df03823d27074eeda08096aaf9
+          ref: 8d78f2bda41e618ed51d2892e2588d9c891d89ac
           path: acore/modules/mod-individual-progression
           persist-credentials: false
       - name: Checkout Naxx #291 P1-P4/P4-H + F15 path redaction
@@ -62,7 +62,7 @@ jobs:
           set -euo pipefail
           test "$(git -C acore rev-parse HEAD)" = 8daffdabe9202c228e45d833c9a1d399597a15cd
           test "$(git -C acore/modules/mod-playerbots rev-parse HEAD)" = e88cc4099e69f35126b28942a412ca702d20453b
-          test "$(git -C acore/modules/mod-individual-progression rev-parse HEAD)" = c0c04574623360df03823d27074eeda08096aaf9
+          test "$(git -C acore/modules/mod-individual-progression rev-parse HEAD)" = 8d78f2bda41e618ed51d2892e2588d9c891d89ac
           test "$(git -C acore/modules/mod-naxxramas-core rev-parse HEAD)" = 3d93d6503dab32026959e0662d3b2978585c83f6
           test "$(git -C acore/modules/mod-character-services rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
           cs=acore/modules/mod-character-services
@@ -83,6 +83,9 @@ jobs:
           # must be written before one character SaveToDB, no new paid mode.
           grep -Fq 'for (uint32 slot = 0; slot < ReceiptPolicy::Slots; ++slot)' "$ip/src/IndividualProgressionExpansion.cpp"
           grep -Fq 'stagedLedger.fields[slot]' "$ip/src/IndividualProgressionExpansion.cpp"
+          # Latest IP #43 same-session grandfather receipt fix (source-only pin).
+          grep -Fq 'index < ReceiptPolicy::Slots' "$ip/src/IndividualProgressionExpansion.cpp"
+          grep -Fq 'receipt->second.fields[index] = value;' "$ip/src/IndividualProgressionExpansion.cpp"
           grep -Fq 'Your quest and TBC purchase are preserved.' "$ip/src/IndividualProgressionExpansion.cpp"
           test -s "$ip/tests/paid_receipt_full_slot_model.cpp"
           test -s "$ip/tests/test_ip_paid_expansion_source.py"

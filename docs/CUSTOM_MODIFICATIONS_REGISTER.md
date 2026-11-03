@@ -179,3 +179,32 @@ gameplay/data writes. Hosted Actions verdict must be recorded separately.
 **Live:** not installed. **Rollback:** abandon this isolated CI-only
 branch/PR; earlier successful Services #12 remains available. No merge or
 live deployment approval.
+
+## CS-CI-IP43-NAXX291 — source-matched complete-receipt + sparkle integration, 3 Nov 2026
+
+**Owner:** CosmicCuddle. **Status:** isolated CI-only DRAFT child of Services #13
+(no runtime code, config, data or production changes). **Intent:** compile
+and link the real pinned historical Core+Playerbots with paid IP DRAFT #43
+`c0c04574623360df03823d27074eeda08096aaf9` and Naxx-Core DRAFT #291
+`3d93d6503dab32026959e0662d3b2978585c83f6`, plus inherited
+Character Services #10 source, using the exact Core RAW-invalid-receipt
+runner-only patch and old-PB two source compatibility substitutions.
+This tests the all-eight-slot v1 purchase writer after the new paid quest
+feedback and the H1/H2 corpse sparkle fix together, not merely separately.
+
+**Affected file:** `.github/workflows/character-services-core-dualfile-ip43-naxx291-joint-native-20261103.yml`.
+**References:** Grimfeather Core `8daffdabe9202c228e45d833c9a1d399597a15cd`,
+stock Playerbots `e88cc4099e69f35126b28942a412ca702d20453b`,
+IP #43, Naxx #291, original Services #10 via protected parent #13.
+No new SQL, DBC/client patch, service API or module source changes.
+**Checks:** owner snapshot preservation, paid default OFF and H1/H2 default OFF,
+explicit new canonical 8-slot IP loop and player feedback source evidence,
+module C++ compile graph and actual linked Worldserver **without starting
+it**. Report Actions verdict at exact PR head only.
+**Risks:** Core runner-only modifications not proof of installed source; a
+successful binary is not tested character settings, reward, database,
+relogin, paid commissioning, current host, Playerbots group/reset or actual
+corpse sparkle behaviour. A1/A2, legacy paid rows, B1/B2 and GM bypass
+remain unapproved/blocking; no DB migration has occurred.
+**Rollback:** close/discard CI-only draft, preserving original successful
+#12 and independent #13 source pins. No host/server deployment approval.

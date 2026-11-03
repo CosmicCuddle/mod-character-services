@@ -47,7 +47,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: CosmicCuddle/Mod-Naxxramas-Core
-          ref: c36962895e862af81ac23753c1bdc91f092ea53d
+          ref: 51d0611476358286505aed3ca806ea250f644f66
           path: acore/modules/mod-naxxramas-core
           persist-credentials: false
       - name: Checkout exact Character Services development PR
@@ -63,7 +63,7 @@ jobs:
           test "$(git -C acore rev-parse HEAD)" = 8daffdabe9202c228e45d833c9a1d399597a15cd
           test "$(git -C acore/modules/mod-playerbots rev-parse HEAD)" = e88cc4099e69f35126b28942a412ca702d20453b
           test "$(git -C acore/modules/mod-individual-progression rev-parse HEAD)" = 26d5b7a1de30ad92a595aaf251fc14754cf54f32
-          test "$(git -C acore/modules/mod-naxxramas-core rev-parse HEAD)" = c36962895e862af81ac23753c1bdc91f092ea53d
+          test "$(git -C acore/modules/mod-naxxramas-core rev-parse HEAD)" = 51d0611476358286505aed3ca806ea250f644f66
           test "$(git -C acore/modules/mod-character-services rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
           cs=acore/modules/mod-character-services
           ip=acore/modules/mod-individual-progression

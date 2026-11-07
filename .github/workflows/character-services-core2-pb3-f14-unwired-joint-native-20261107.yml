@@ -3,12 +3,12 @@ name: Owner Core2 UNWIRED F14 API + PB3 OFF + IP46 + Naxx292 + Services Worldser
 on:
   pull_request:
     branches:
-      - ci/cs01-core2-pb3-f14-unwired-api-ip46-naxx292-services-20261107
+      - ci/cs01-core1-pb3-birth-observer-ip46-naxx292-services-20261107
     paths:
       - '.github/workflows/character-services-core2-pb3-f14-unwired-joint-native-20261107.yml'
   push:
     branches:
-      - ci/cs01-core1-pb3-birth-observer-ip46-naxx292-services-20261107
+      - ci/cs01-core2-pb3-f14-unwired-api-ip46-naxx292-services-20261107
     paths:
       - '.github/workflows/character-services-core2-pb3-f14-unwired-joint-native-20261107.yml'
 

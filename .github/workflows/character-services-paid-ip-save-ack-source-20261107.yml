@@ -1,0 +1,78 @@
+name: Paid expansion vendor/IP/Core save ACK source handoff (READ ONLY)
+
+on:
+  push:
+    branches:
+      - research/cs01-paid-purchase-save-acknowledgement-source-20261107
+  pull_request:
+    branches:
+      - ci/cs01-core2-pb3-f14-unwired-api-ip46-naxx292-services-20261107
+    paths:
+      - 'tests/test_paid_ip_save_commit_acknowledgement_source.py'
+      - 'docs/PAID_IP_PURCHASE_DB_COMMIT_ACK_SOURCE_AUDIT_20261107.md'
+      - '.github/workflows/character-services-paid-ip-save-ack-source-20261107.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  source-only-paid-save-boundary:
+    name: Verify exact Core/IP/Services source — no database, payment or host
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Checkout owner Services review branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Checkout exact owner Core #2 default-FALSE F14 and paid guard
+        uses: actions/checkout@v4
+        with:
+          repository: CosmicCuddle/azerothcore-wotlk
+          ref: d2066943e19cd959de2a0e9897135573e4124219
+          path: _pinned_core
+          persist-credentials: false
+
+      - name: Checkout exact owner IP #46 paid policy and source
+        uses: actions/checkout@v4
+        with:
+          repository: CosmicCuddle/mod-individual-progression
+          ref: 26d5b7a1de30ad92a595aaf251fc14754cf54f32
+          path: _pinned_ip
+          persist-credentials: false
+
+      - name: Verify pinned sources and strictly three review-only paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          parent=f0763c3946519da192e522a1e42b95bded9f346e
+          git merge-base --is-ancestor "$parent" HEAD
+          git diff --check "$parent" HEAD
+          test "$(git -C _pinned_core rev-parse HEAD)" = d2066943e19cd959de2a0e9897135573e4124219
+          test "$(git -C _pinned_ip rev-parse HEAD)" = 26d5b7a1de30ad92a595aaf251fc14754cf54f32
+          git diff --name-only "$parent" HEAD | sort > /tmp/actual
+          printf '%s\n' \
+            'tests/test_paid_ip_save_commit_acknowledgement_source.py' \
+            'docs/PAID_IP_PURCHASE_DB_COMMIT_ACK_SOURCE_AUDIT_20261107.md' \
+            '.github/workflows/character-services-paid-ip-save-ack-source-20261107.yml' | sort > /tmp/expected
+          diff -u /tmp/expected /tmp/actual
+          test -z "$(git diff --name-only "$parent" HEAD -- src conf data sql apps)"
+          echo 'PASS: only tests/docs/CI; exact owner Core #2 and IP #46 verified'
+
+      - name: Source-only actual owner Core/IP + vendor payment durability boundary
+        env:
+          COSMIC_PAID_SOURCE_CORE: _pinned_core
+          COSMIC_PAID_SOURCE_IP: _pinned_ip
+        run: |
+          python3 -B -m unittest discover -s tests -p 'test_paid_ip_save_commit_acknowledgement_source.py' -v
+          python3 -B -m unittest discover -s tests -p 'test_cs_paid_expansion_source.py' -v
+
+      - name: Evidence limits
+        if: always()
+        run: |
+          echo 'NO MySQL/CharacterDB, save callback, money, quest, purchased entitlement, server start or runtime migration.'
+          echo 'A queued SaveToDB is NOT a confirmed durable commit; this check only traces existing source.'
+          echo 'No source patch, live gameplay, new owner policy, merge or production approval.'

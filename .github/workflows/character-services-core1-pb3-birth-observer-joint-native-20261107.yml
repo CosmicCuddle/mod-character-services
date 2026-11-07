@@ -1,6 +1,11 @@
 name: Owner Core1 + PB3 default-OFF creation probe + IP46 + Naxx292 + Services Worldserver (NO LAUNCH)
 
 on:
+  pull_request:
+    branches:
+      - ci/cs01-core1-pb1-ip46-naxx292-services-20261107
+    paths:
+      - '.github/workflows/character-services-core1-pb3-birth-observer-joint-native-20261107.yml'
   push:
     branches:
       - ci/cs01-core1-pb3-birth-observer-ip46-naxx292-services-20261107

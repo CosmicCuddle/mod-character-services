@@ -104,7 +104,7 @@ class SourceOnlyInventory(unittest.TestCase):
         self.assertNotIn("SENSITIVE_FIXTURE_ONLY", json.dumps(found))
 
     def test_ignored_untracked_source_does_not_create_false_alarm(self):
-        (self.pb / ".gitignore").write_text("secret-ignored.conf\\n", encoding="utf-8")
+        (self.pb / ".gitignore").write_text("secret-ignored.conf\n", encoding="utf-8")
         git(self.pb, "add", ".gitignore")
         git(self.pb, "-c", "user.name=Fixture", "-c",
             "user.email=fixture@example.invalid", "commit", "-qm", "ignore-secret")

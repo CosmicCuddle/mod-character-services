@@ -106,7 +106,7 @@ class SourceOnlyInventory(unittest.TestCase):
                 self.assertEqual(payload["running_core_binary"], "not_verified")
             else:
                 self.assertIn("NOT LIVE SERVER", rendered)
-                self.assertIn("Worldserver", rendered.lower().title())
+                self.assertIn("UNVERIFIED:", rendered)
 
     def test_invalid_or_symlink_root_refused(self):
         with self.assertRaises(ValueError):

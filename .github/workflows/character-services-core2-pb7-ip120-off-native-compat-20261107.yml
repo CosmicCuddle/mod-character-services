@@ -146,6 +146,12 @@ jobs:
           # IP includes independent skip-only RandomBot group
           # safeguard. This is incomplete F14 and MUST remain opt-in/OFF.
           grep -Fqx 'IndividualProgression.F14.ProtectVerifiedRandomBotGroupFloor = 0' "$ip/conf/individualProgression.conf.dist"
+          # IP120 added optional paths not present at the older IP46 pin.
+          # Require each new intervention OFF in the distributed config.
+          grep -Fqx 'IndividualProgression.F14.ForceVerifiedRandomBotTbcFloorOnLogin = 0' "$ip/conf/individualProgression.conf.dist"
+          grep -Fqx 'IndividualProgression.F14.ExperimentalRndbotPlayerVisibility = 0' "$ip/conf/individualProgression.conf.dist"
+          grep -Fqx 'IndividualProgression.F14.ExperimentalAttackLifecycleRegistry = 0' "$ip/conf/individualProgression.conf.dist"
+          grep -Fqx 'IndividualProgression.F14.ProtectVerifiedRandomBotStageFloor = 0' "$ip/conf/individualProgression.conf.dist"
           grep -Fq 'ShouldSkipF14VerifiedRandomBotGroupDowngrade(' "$ip/src/IndividualProgression.cpp"
           grep -Fq 'ShouldSkipF14VerifiedRandomBotGroupDowngrade(player, leaderState)' "$ip/src/IndividualProgressionPlayer.cpp"
           test -s "$ip/src/IndividualProgressionF14LifecycleScript.cpp"

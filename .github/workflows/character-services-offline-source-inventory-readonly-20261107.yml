@@ -1,0 +1,68 @@
+name: Source-only offline server revision inventory preflight (NO HOST)
+
+on:
+  push:
+    branches:
+      - tools/cs01-offline-source-revisions-readonly-inventory-20261107
+  pull_request:
+    branches:
+      - ci/cs01-core2-pb3-f14-unwired-api-ip46-naxx292-services-20261107
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-source-inventory:
+    name: Fake local Git repos only; no configs or databases
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact source with no credentials stored
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Enforce exact historical five-owner green parent and four-file inventory only
+        shell: bash
+        run: |
+          set -euo pipefail
+          parent=f0763c3946519da192e522a1e42b95bded9f346e
+          git merge-base --is-ancestor "$parent" HEAD
+          git diff --check "$parent" HEAD
+          git diff --name-only "$parent" HEAD | sort > /tmp/actual-inventory
+          printf '%s\n' \
+            'tools/offline_source_inventory.py' \
+            'tests/test_offline_source_inventory.py' \
+            '.github/workflows/character-services-offline-source-inventory-readonly-20261107.yml' \
+            'docs/OFFLINE_SOURCE_INVENTORY_READONLY_20261107.md' | sort > /tmp/expected-inventory
+          diff -u /tmp/expected-inventory /tmp/actual-inventory
+          test -z "$(git diff --name-only "$parent" HEAD -- src conf data sql apps)"
+          echo 'PASS exactly four utility/tests/docs paths, no runtime or SQL/config changes'
+      - name: Run synthetic Git repository and secret-redaction tests
+        run: |
+          python3 -B -m unittest discover -s tests -p 'test_offline_source_inventory.py' -v
+      - name: Validate CLI output on disposable checkout only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/offline_source_inventory.py --core . > /tmp/inventory-output
+          grep -Fq 'SOURCE-ONLY, READ-ONLY' /tmp/inventory-output
+          grep -Fq 'NOT LIVE SERVER' /tmp/inventory-output
+          grep -Fq 'UNVERIFIED:' /tmp/inventory-output
+          python3 tools/offline_source_inventory.py --core . --json > /tmp/inventory-json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/inventory-json',encoding='utf-8') as f:
+              value=json.load(f)
+          assert value['scope'].startswith('source folders only')
+          assert value['databases_and_schema']=='not_checked'
+          assert value['running_core_binary']=='not_verified'
+          assert value['production_change_approved'] is False
+          print('PASS CLI schema no deploy/install claims')
+          PY
+      - name: Declare confidence boundary
+        run: |
+          echo 'No user server, live files, database, effective config, real binaries, DBC/client or secrets accessed.'
+          echo 'This tool only inspects the OWNER-SUPPLIED SOURCE folder when run later by the owner.'
+          echo 'No stage completion beyond source inventory; restorable backups and owner approval still required.'

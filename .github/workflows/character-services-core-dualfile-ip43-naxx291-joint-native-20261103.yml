@@ -1,4 +1,4 @@
-name: Core protected RAW paid ledger + IP46 + Naxx292 + Services10 Worldserver (DRAFT)
+name: Owner Core1 + PB1 native no-patch + IP46 + Naxx292 + Services Worldserver (OFF)
 
 on:
   pull_request:
@@ -18,22 +18,22 @@ permissions:
 
 jobs:
   pinned-paid-vendor-worldserver-link:
-    name: Core paid receipt + PB + IP46 + Naxx292 + Services10 Worldserver (NO LAUNCH)
+    name: Owner Core paid + PB earned reset + IP46 + Naxx292 + Services (NO LAUNCH)
     runs-on: ubuntu-24.04
     timeout-minutes: 170
     steps:
-      - name: Checkout historical fixed Core
+      - name: Checkout owner Core fork draft #1 (raw malformed-receipt protection committed)
         uses: actions/checkout@v4
         with:
-          repository: Grimfeather/azerothcore-wotlk
-          ref: 8daffdabe9202c228e45d833c9a1d399597a15cd
+          repository: CosmicCuddle/azerothcore-wotlk
+          ref: 1e37f3343cf08618101b625601cd299f0a1770ca
           path: acore
           persist-credentials: false
-      - name: Checkout historical Playerbots
+      - name: Checkout owner Playerbots fork draft #1 (earned RNDBOT reset protection OFF)
         uses: actions/checkout@v4
         with:
-          repository: mod-playerbots/mod-playerbots
-          ref: e88cc4099e69f35126b28942a412ca702d20453b
+          repository: CosmicCuddle/mod-playerbots
+          ref: 0cf8163d8bda15c765f73538667fc49d9a9ceb46
           path: acore/modules/mod-playerbots
           persist-credentials: false
       - name: Checkout latest IP #46 paid hand-in protection and protected receipt (default OFF)
@@ -60,13 +60,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git -C acore rev-parse HEAD)" = 8daffdabe9202c228e45d833c9a1d399597a15cd
-          test "$(git -C acore/modules/mod-playerbots rev-parse HEAD)" = e88cc4099e69f35126b28942a412ca702d20453b
+          test "$(git -C acore rev-parse HEAD)" = 1e37f3343cf08618101b625601cd299f0a1770ca
+          test "$(git -C acore/modules/mod-playerbots rev-parse HEAD)" = 0cf8163d8bda15c765f73538667fc49d9a9ceb46
           test "$(git -C acore/modules/mod-individual-progression rev-parse HEAD)" = 26d5b7a1de30ad92a595aaf251fc14754cf54f32
           test "$(git -C acore/modules/mod-naxxramas-core rev-parse HEAD)" = 51d0611476358286505aed3ca806ea250f644f66
           test "$(git -C acore/modules/mod-character-services rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
           cs=acore/modules/mod-character-services
           ip=acore/modules/mod-individual-progression
+          pb=acore/modules/mod-playerbots
+          grep -Fqx 'Playerbots.ResetQuestsPreserveQuestIds =' "$pb/conf/playerbots.conf.dist"
+          test -s "$pb/tests/test_f14_earned_marker_reset_source.py"
+          grep -Fq 'preserveMask != 0 && sRandomPlayerbotMgr.IsRandomBot(bot)' "$pb/src/Bot/Factory/PlayerbotFactory.cpp"
+          grep -Fq 'ResetQuestsPreserveMask.store(markerMask, std::memory_order_release)' "$pb/src/PlayerbotAIConfig.cpp"
           grep -Fqx 'CharacterServices.ExpansionUnlock.Enable = 0' "$cs/conf/character_services.conf.dist"
           grep -Fqx 'IndividualProgression.PaidExpansion.Enable = 0' "$ip/conf/individualProgression.conf.dist"
           grep -Fq 'PurchaseExpansion(Player* player' "$ip/src/IndividualProgression.h"
@@ -155,7 +160,7 @@ jobs:
           g++ -std=c++17 -Wall -Wextra -Werror -pedantic -O2 "$ip/tests/f14_group_sync_floor.cpp" -o /tmp/ip-f14-group-floor
           /tmp/ip-f14-group-floor | tee /tmp/ip-f14-floor.out
           grep -Fq 'F14 GROUP FLOOR MODEL 1805/1805 passed' /tmp/ip-f14-floor.out
-      - name: Apply exact two-file Core paid-row safety patch on disposable runner
+      - name: Verify paid raw-receipt protection ALREADY COMMITTED in owner Core fork (NO PATCH)
         shell: bash
         run: |
           set -euo pipefail
@@ -163,16 +168,10 @@ jobs:
           ip=$core/modules/mod-individual-progression
           target=src/server/game/Entities/Player/PlayerSettings.cpp
           player=src/server/game/Entities/Player/Player.h
-          patch=modules/mod-individual-progression/tests/core_patches/preserve_paid_receipt_row.patch
-          test "$(git -C "$core" rev-parse "HEAD:$target")" = f1eb86367ce69111867ef7187125f5fe456c5367
-          test "$(git -C "$core" rev-parse "HEAD:$player")" = 5a29ac7b40ade7a11f1fcf36623dc7530ea39595
-          test -s "$core/$patch"
-          git -C "$core" apply --check "$patch"
-          git -C "$core" apply "$patch"
-          git -C "$core" diff --check
-          git -C "$core" diff --name-only | sort > /tmp/actual-core.txt
-          printf '%s\n' "$player" "$target" | sort > /tmp/expected-core.txt
-          diff -u /tmp/expected-core.txt /tmp/actual-core.txt
+          test "$(git -C "$core" rev-parse HEAD)" = 1e37f3343cf08618101b625601cd299f0a1770ca
+          test "$(git -C "$core" rev-parse "HEAD:$target")" = 2bcac6abe4a8960a62241a582d86ba28e46b2719
+          test "$(git -C "$core" rev-parse "HEAD:$player")" = 81920131574af4a00e6d0f213c428b25750d9aa0
+          test -z "$(git -C "$core" status --porcelain)"
           grep -Fq 'SerializeSettingsData(parsed) == data' "$core/$target"
           grep -Fq 'if (!PlayerSettingsStore::IsCanonicalPaidReceiptRow(source, data))' "$core/$target"
           grep -Fq 'if (unsafePaidRow)' "$core/$target"
@@ -180,32 +179,35 @@ jobs:
           grep -Fq 'bool m_preserveMalformedPaidSettingsRow = false;' "$core/$player"
           grep -Fq 'ReceiptPolicy::DecodeRaw' "$ip/src/IndividualProgressionExpansion.cpp"
           grep -Fq 'player->IsBeingTeleportedFar()' "$ip/src/IndividualProgressionExpansion.cpp"
-          echo 'PASS: exact Core two-file raw-row guard applied only in disposable runner'
+          python3 -B -m unittest discover -s "$core/tests/cosmic_paid_receipt_guard" -p 'test_paid_receipt_guard_source.py' -v
+          echo 'PASS: exact two-file raw-paid Core guard committed in owner fork; no runner patch, no DB writes'
 
-      - name: Apply exactly two pinned Playerbots compatibility edits ON CI RUNNER ONLY
+      - name: Verify native owner Core + Playerbots DB and locale APIs match (NO CI PATCHES)
         shell: bash
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-          root=Path('acore/modules/mod-playerbots')
-          edits={
-            'src/Db/PlayerbotsDatabase.h': (
-              'MySQLConnection* CreateAsyncConnection(ProducerConsumerQueue<SQLOperation*>* queue,',
-              'MySQLConnection* CreateConnection(ProducerConsumerQueue<SQLOperation*>* queue,'),
-            'src/Util/LocaleColumns.h':(
-              'if (!IsLocaleRegistered(locale))','if (!localeNames[locale])')
-          }
-          for name,(old,new) in edits.items():
-            f=root/name
-            s=f.read_text()
-            assert s.count(old)==1 and new not in s,name
-            f.write_text(s.replace(old,new))
-          PY
-          git -C acore/modules/mod-playerbots diff --check
-          git -C acore/modules/mod-playerbots diff --name-only | sort > /tmp/actual.txt
-          printf '%s\n' 'src/Db/PlayerbotsDatabase.h' 'src/Util/LocaleColumns.h' | sort > /tmp/allowed.txt
-          diff -u /tmp/allowed.txt /tmp/actual.txt
+          core=acore
+          pb=$core/modules/mod-playerbots
+          core_db=$core/src/server/database/Database/ModuleDatabasePool.h
+          pb_db=$pb/src/Db/PlayerbotsDatabase.h
+          core_common=$core/src/common/Common.h
+          pb_locale=$pb/src/Util/LocaleColumns.h
+          # The earlier Core 8daffdabe DID NOT expose either of these exact APIs:
+          # its module DB queue overload was CreateConnection(queue), and its
+          # Common.h lacked IsLocaleRegistered. Both old runner shims are WRONG
+          # for the owner Core 0d754d19. Do not rewrite either owner fork.
+          test "$(git -C "$core" rev-parse HEAD:src/server/database/Database/ModuleDatabasePool.h)" = c3e76c1d354c26f8da00fce179175f994cf9783c
+          test "$(git -C "$core" rev-parse HEAD:src/common/Common.h)" = d0fe192f119b8fe1c9a1afcdd79f973f5525d409
+          test "$(git -C "$pb" rev-parse HEAD:src/Db/PlayerbotsDatabase.h)" = 6973d4fad807caf5fffc595aca63c20b52281a9f
+          test "$(git -C "$pb" rev-parse HEAD:src/Util/LocaleColumns.h)" = 46fd0a6b9ab8369669224353aada325d5d7b275c
+          grep -Fq 'virtual MySQLConnection* CreateAsyncConnection(ProducerConsumerQueue<SQLOperation*>* queue,' "$core_db"
+          grep -Fq 'MySQLConnection* CreateAsyncConnection(ProducerConsumerQueue<SQLOperation*>* queue,' "$pb_db"
+          grep -Fq 'inline bool IsLocaleRegistered(LocaleConstant locale) { return locale < TOTAL_LOCALES && localeNames[locale]; }' "$core_common"
+          grep -Fq 'if (!IsLocaleRegistered(locale))' "$pb_locale"
+          test -z "$(git -C "$core" status --porcelain)"
+          test -z "$(git -C "$pb" status --porcelain)"
+          echo 'PASS: owner-fork Core/PB native interfaces match at exact blobs, no temporary C++ edits'
+
       - name: Install compile dependencies on disposable runner only
         run: |
           sudo apt-get update
@@ -243,11 +245,11 @@ jobs:
         run: |
           test -s acore-build/src/server/apps/worldserver
           test -x acore-build/src/server/apps/worldserver
-          echo 'PASS: pinned Core + PB + IP #46 paid/GM/F19/10259 packet + scoped Core raw-row guard + Naxx #292 P1-P4/P4-H/P2 quiver/F15 + Character Services linked'
+          echo 'PASS: OWNER Core DRAFT #1 + OWNER PB DRAFT #1 (OFF) + IP #46 + Naxx #292 + Services #16 Worldserver LINKED; Core paid row guard COMMITTED, not runner-applied'
           echo 'No owner host, accounts, DB, NPC, gold, config, enablement or live archive touched'
       - name: Safety and confidence boundary
         if: always()
         run: |
-          echo 'Runner-only PB two edits are NOT owner-installed branch proof.'
+          echo 'ZERO runner-only Core/Playerbots source edits. Both former DB/locale shims are incompatible or unnecessary on owner Core and therefore removed.'
           echo 'Even a successful native link is NOT a completed gossip/payment/restart/gameplay test.'
           echo 'Both expansion feature flags remain OFF; do not deploy without CosmicCuddle approval.'

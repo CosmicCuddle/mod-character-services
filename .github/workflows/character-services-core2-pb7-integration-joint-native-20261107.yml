@@ -3,12 +3,12 @@ name: Owner Core2 F14 false + PB7 INTEGRATED OFF + IP46 + Naxx292 + Services wor
 on:
   pull_request:
     branches:
-      - ci/cs01-core2-pb7-integrated-off-ip46-naxx292-services-20261107
+      - ci/cs01-core2-pb6-retire-f14-off-ip46-naxx292-services-20261107
     paths:
       - '.github/workflows/character-services-core2-pb7-integration-joint-native-20261107.yml'
   push:
     branches:
-      - ci/cs01-core2-pb6-retire-f14-off-ip46-naxx292-services-20261107
+      - ci/cs01-core2-pb7-integrated-off-ip46-naxx292-services-20261107
     paths:
       - '.github/workflows/character-services-core2-pb7-integration-joint-native-20261107.yml'
 

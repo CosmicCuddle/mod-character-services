@@ -3,7 +3,7 @@ name: Owner Core2+PB7+IP120 F14 OFF + Naxx292+Services native compatibility (NO 
 on:
   pull_request:
     branches:
-      - ci/cs01-core2-pb7-ip120-off-native-compat-20261107
+      - ci/cs01-core2-pb7-integrated-off-ip46-naxx292-services-20261107
     paths:
       - '.github/workflows/character-services-core2-pb7-ip120-off-native-compat-20261107.yml'
   push:

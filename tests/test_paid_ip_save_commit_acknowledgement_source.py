@@ -37,9 +37,14 @@ class PaidExpansionSaveCommitBoundary(unittest.TestCase):
         cls.purchase = between(
             cls.ipcpp, "PurchaseResult IndividualProgression::PurchaseExpansion(",
             "void IndividualProgression::EvaluatePaidExpansionGrandfather(")
-        cls.vendor_paid = between(
-            cls.vendor, "if (action == 200 || action == 201)",
-            "#else\n      // Historical IP lacks durable entitlement/payment API.")
+        # Two vendor branches intentionally handle the same action IDs:
+        # the paid-API branch and a separate old-IP fail-closed #else.
+        # Limit this check to the first, actual paid-API branch.
+        cls.vendor_paid = cls.vendor[
+            cls.vendor.index("if (action == 200 || action == 201)"):
+            cls.vendor.index(
+                "#else\n      // Historical IP lacks durable entitlement/payment API.")
+        ]
 
     def test_vendor_delegates_charge_and_does_not_mint_markers(self):
         h = self.vendor_paid

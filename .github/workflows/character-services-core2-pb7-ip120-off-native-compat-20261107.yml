@@ -152,6 +152,13 @@ jobs:
           grep -Fqx 'IndividualProgression.F14.ExperimentalRndbotPlayerVisibility = 0' "$ip/conf/individualProgression.conf.dist"
           grep -Fqx 'IndividualProgression.F14.ExperimentalAttackLifecycleRegistry = 0' "$ip/conf/individualProgression.conf.dist"
           grep -Fqx 'IndividualProgression.F14.ProtectVerifiedRandomBotStageFloor = 0' "$ip/conf/individualProgression.conf.dist"
+          # Confirm IP120 itself fails closed on the owner Core2 which does
+          # not supply the old disposable WHO/refresh/attack/corpse hooks.
+          grep -Fq '#if !defined(COSMIC_F14_VISIBILITY_REFRESH_HOOK_VERSION) || COSMIC_F14_VISIBILITY_REFRESH_HOOK_VERSION < 1' "$ip/src/IndividualProgression.cpp"
+          grep -Fq 'sIndividualProgression->f14ForceVerifiedRandomBotTbcFloorOnLogin = false;' "$ip/src/IndividualProgression.cpp"
+          grep -Fq 'sIndividualProgression->f14ExperimentalRndbotPlayerVisibility = false;' "$ip/src/IndividualProgression.cpp"
+          grep -Fq 'sIndividualProgression->f14ExperimentalAttackLifecycleRegistry = false;' "$ip/src/IndividualProgression.cpp"
+          grep -Fq 'COSMIC_F14_VISIBILITY_REFRESH_HOOK_VERSION) && COSMIC_F14_VISIBILITY_REFRESH_HOOK_VERSION >= 1' "$ip/src/IndividualProgressionPlayer.cpp"
           grep -Fq 'ShouldSkipF14VerifiedRandomBotGroupDowngrade(' "$ip/src/IndividualProgression.cpp"
           grep -Fq 'ShouldSkipF14VerifiedRandomBotGroupDowngrade(player, leaderState)' "$ip/src/IndividualProgressionPlayer.cpp"
           test -s "$ip/src/IndividualProgressionF14LifecycleScript.cpp"

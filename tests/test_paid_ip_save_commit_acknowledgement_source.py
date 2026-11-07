@@ -32,7 +32,7 @@ class PaidExpansionSaveCommitBoundary(unittest.TestCase):
         cls.ipcpp = (IP / "src/IndividualProgressionExpansion.cpp").read_text()
         cls.ippolicy = (IP / "src/IndividualProgressionExpansionPolicy.h").read_text()
         cls.vendor = (SERVICES / "src/CharacterServices.cpp").read_text()
-        cls.ipdist = (IP / "conf/individual_progression.conf.dist").read_text()
+        cls.ipdist = (IP / "conf/individualProgression.conf.dist").read_text()
         cls.csdist = (SERVICES / "conf/character_services.conf.dist").read_text()
         cls.purchase = between(
             cls.ipcpp, "PurchaseResult IndividualProgression::PurchaseExpansion(",

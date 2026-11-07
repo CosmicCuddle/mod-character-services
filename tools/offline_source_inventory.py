@@ -182,7 +182,7 @@ def main() -> int:
               + (", ".join(extras) if extras else "none detected"))
         print("UNVERIFIED: untracked files; actual loaded modules; active "
               "binary; config flags; DB/SQL; DBC/client; backups; deployment.")
-        print("No files, SQL, services or credentials were read or changed.")
+        print("No config values or database rows printed; no server files or services changed.")
     return 0
 
 

@@ -31,6 +31,18 @@ python3 tools/offline_source_inventory.py --core "/path/to/your/offline/azerothc
 
 This is a *future optional diagnostic*, not an instruction to run it on the live production folder or to upload any config, private filesystem path or credentials. The owner has finger/wrist fatigue: at test time only **one command** is required, and the path will be filled in from the verified local offline source location, not guessed by Maintenance.
 
+## Optional untracked-file presence check (independent DRAFT child, default OFF)
+
+To identify a risk that an offline source tree contains local custom files not represented by its Git HEAD SHA, a separately reviewed command-line **opt-in only** may be added:
+
+```bash
+python3 tools/offline_source_inventory.py --core "/path/to/your/offline/azerothcore-source" --check-untracked-presence
+```
+
+The original command without this option remains unchanged: **untracked files are NOT checked**. When explicitly requested, the tool checks only independent Git checkouts and reports `untracked-present=yes/no/unknown` per component. It invokes Git's `ls-files --others --exclude-standard --directory -z` and immediately discards the path text; no filenames, file contents, private source paths, usernames, remotes or credential values appear in human or JSON results. Ignored files are **not included** and thus `no` does not prove an otherwise clean tree, an active deployed binary or absence of other local customisations. Missing/non-independent Git checkouts say `unknown`.
+
+This reads additional offline source metadata and directory names; it must not be run on the owner's actual production folder without separate explicit owner permission. Synthetic hosted tests use fake private filenames and ignored files without touching the real machine. No automatic backup, deletion, restore, SQL, module activation, launch, installation, data upload, remote access or feature toggle is introduced. The new child remains **review-only**; rollback is to discard it and keep the original #21 draft source inventory tool.
+
 ## Synthetic CI and release gate
 
 A dedicated GitHub Actions workflow runs Python standard-library unit tests against **ephemeral fake local Git repositories** created in temporary directories; synthetic private-config contents are never shown. It separately tests the CLI JSON/human output on the disposable GitHub checkout. Strict change allowlist limits this review-only PR to `tools/offline_source_inventory.py`, `tests/test_offline_source_inventory.py`, this document, and its CI workflow, with **no runtime/config/SQL changes**. Hosted CI must finish and be inspected before anyone claims a pass.

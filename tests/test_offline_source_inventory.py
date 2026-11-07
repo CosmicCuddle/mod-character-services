@@ -87,6 +87,62 @@ class SourceOnlyInventory(unittest.TestCase):
         self.assertEqual(second["components"]["Core"]["tracked_changes"], "yes")
         self.assertEqual(second["untracked_files"], "not_checked")
 
+    def test_optional_untracked_presence_keeps_historical_default(self):
+        original = inventory.inventory(self.pb)
+        self.assertEqual(original["untracked_files"], "not_checked")
+        self.assertNotIn("untracked_presence", original["components"]["Core"])
+        empty = inventory.inventory(self.pb, check_untracked_presence=True)
+        self.assertEqual(empty["components"]["Core"]["untracked_presence"], "no")
+        self.assertEqual(empty["untracked_files"],
+                         "checked_presence_only_in_independent_git_checkouts")
+        # The returned schema never includes a sensitive local filename.
+        secret_name = "PRIVATE_DB_PASSWORD_NOT_FOR_LOGS.txt"
+        (self.pb / secret_name).write_text("SENSITIVE_FIXTURE_ONLY", encoding="utf-8")
+        found = inventory.inventory(self.pb, check_untracked_presence=True)
+        self.assertEqual(found["components"]["Core"]["untracked_presence"], "yes")
+        self.assertNotIn(secret_name, json.dumps(found))
+        self.assertNotIn("SENSITIVE_FIXTURE_ONLY", json.dumps(found))
+
+    def test_ignored_untracked_source_does_not_create_false_alarm(self):
+        (self.pb / ".gitignore").write_text("secret-ignored.conf\n", encoding="utf-8")
+        git(self.pb, "add", ".gitignore")
+        git(self.pb, "-c", "user.name=Fixture", "-c",
+            "user.email=fixture@example.invalid", "commit", "-qm", "ignore-secret")
+        (self.pb / "secret-ignored.conf").write_text("NOT_TO_PRINT", encoding="utf-8")
+        checked = inventory.inventory(self.pb, check_untracked_presence=True)
+        self.assertEqual(checked["components"]["Core"]["untracked_presence"], "no")
+        self.assertEqual(checked["components"]["Core"]["tracked_changes"], "no")
+
+    def test_opted_in_cli_never_reports_untracked_names_or_secret_values(self):
+        secret_file = self.pb / "private-token-NEVER_REVEAL.txt"
+        secret_file.write_text("PRIVATE_CONFIG_VALUE", encoding="utf-8")
+        for as_json in (False, True):
+            output = io.StringIO()
+            args = [str(SCRIPT), "--core", str(self.pb),
+                    "--check-untracked-presence"]
+            if as_json:
+                args.append("--json")
+            with mock.patch.object(sys, "argv", args):
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(inventory.main(), 0)
+            printed = output.getvalue()
+            self.assertNotIn(str(self.home), printed)
+            self.assertNotIn(secret_file.name, printed)
+            self.assertNotIn("PRIVATE_CONFIG_VALUE", printed)
+            if as_json:
+                parsed = json.loads(printed)
+                self.assertEqual(parsed["components"]["Core"]["untracked_presence"],
+                                 "yes")
+            else:
+                self.assertIn("untracked-present=yes", printed)
+                self.assertIn("source paths never printed", printed)
+
+    def test_opted_in_unknown_if_git_unavailable(self):
+        with mock.patch.object(inventory.shutil, "which", return_value=None):
+            result = inventory.inventory(self.pb, check_untracked_presence=True)
+        self.assertEqual(result["components"]["Core"]["untracked_presence"],
+                         "unknown")
+
     def test_no_paths_or_credential_values_in_human_or_json_output(self):
         for is_json in (False, True):
             output = io.StringIO()

@@ -1,4 +1,4 @@
-name: Owner Core1 + PB1 + IP46 + Naxx292 + Services16 Worldserver (DRAFT, OFF)
+name: Owner Core1 + PB1 async API corrected + IP46 + Naxx292 + Services Worldserver (OFF)
 
 on:
   pull_request:
@@ -182,30 +182,37 @@ jobs:
           python3 -B -m unittest discover -s "$core/tests/cosmic_paid_receipt_guard" -p 'test_paid_receipt_guard_source.py' -v
           echo 'PASS: exact two-file raw-paid Core guard committed in owner fork; no runner patch, no DB writes'
 
-      - name: Apply exactly two pinned Playerbots compatibility edits ON CI RUNNER ONLY
+      - name: Verify exact new Core async DB API; apply LocaleColumns compatibility only in CI runner
         shell: bash
         run: |
           set -euo pipefail
+          core=acore
+          pb=$core/modules/mod-playerbots
+          core_db=$core/src/server/database/Database/ModuleDatabasePool.h
+          pb_db=$pb/src/Db/PlayerbotsDatabase.h
+          # The original historical Core 8daffdabe expected CreateConnection(queue),
+          # but owner Core 0d754d19 (new fork #1) instead expects
+          # CreateAsyncConnection(queue). NEVER copy old shim to owner PB fork.
+          test "$(git -C "$core" rev-parse "HEAD:src/server/database/Database/ModuleDatabasePool.h")" = c3e76c1d354c26f8da00fce179175f994cf9783c
+          grep -Fq 'virtual MySQLConnection* CreateAsyncConnection(ProducerConsumerQueue<SQLOperation*>* queue,' "$core_db"
+          grep -Fq 'MySQLConnection* CreateAsyncConnection(ProducerConsumerQueue<SQLOperation*>* queue,' "$pb_db"
           python3 - <<'PY'
           from pathlib import Path
-          root=Path('acore/modules/mod-playerbots')
-          edits={
-            'src/Db/PlayerbotsDatabase.h': (
-              'MySQLConnection* CreateAsyncConnection(ProducerConsumerQueue<SQLOperation*>* queue,',
-              'MySQLConnection* CreateConnection(ProducerConsumerQueue<SQLOperation*>* queue,'),
-            'src/Util/LocaleColumns.h':(
-              'if (!IsLocaleRegistered(locale))','if (!localeNames[locale])')
-          }
-          for name,(old,new) in edits.items():
-            f=root/name
-            s=f.read_text()
-            assert s.count(old)==1 and new not in s,name
-            f.write_text(s.replace(old,new))
+          path=Path('acore/modules/mod-playerbots/src/Util/LocaleColumns.h')
+          original=path.read_text()
+          old='if (!IsLocaleRegistered(locale))'
+          new='if (!localeNames[locale])'
+          if original.count(old)!=1 or new in original:
+              raise ValueError('Unverified locale-compatibility anchor; refuse patch')
+          path.write_text(original.replace(old,new,1))
           PY
-          git -C acore/modules/mod-playerbots diff --check
-          git -C acore/modules/mod-playerbots diff --name-only | sort > /tmp/actual.txt
-          printf '%s\n' 'src/Db/PlayerbotsDatabase.h' 'src/Util/LocaleColumns.h' | sort > /tmp/allowed.txt
+          git -C "$pb" diff --check
+          git -C "$pb" diff --name-only | sort > /tmp/actual.txt
+          printf '%s\n' 'src/Util/LocaleColumns.h' | sort > /tmp/allowed.txt
           diff -u /tmp/allowed.txt /tmp/actual.txt
+          test -z "$(git -C "$pb" diff -- src/Db/PlayerbotsDatabase.h)"
+          echo 'PASS: owner Core and Playerbots async method already match, only locale shim is disposable'
+
       - name: Install compile dependencies on disposable runner only
         run: |
           sudo apt-get update
@@ -248,6 +255,6 @@ jobs:
       - name: Safety and confidence boundary
         if: always()
         run: |
-          echo 'Only two pre-existing Playerbots CI-only compatibility edits remain disposable on runner. They are NOT owner-fork PR source or installed branch proof.'
+          echo 'Only ONE inherited Playerbots locale compatibility edit remains disposable in CI; the original DB async shim was WRONG for owner Core and removed.'
           echo 'Even a successful native link is NOT a completed gossip/payment/restart/gameplay test.'
           echo 'Both expansion feature flags remain OFF; do not deploy without CosmicCuddle approval.'

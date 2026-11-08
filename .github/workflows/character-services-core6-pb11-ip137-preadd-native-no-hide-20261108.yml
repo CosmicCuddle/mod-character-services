@@ -28,12 +28,13 @@ jobs:
           ref: 6a0c1dba53617c77353718eb4338fda634fca5eb
           path: acore
           persist-credentials: false
-      - name: Checkout owner PB DRAFT #10 (failed-preflight abort, audited admission OFF)
+      - name: Checkout owner PB11 pre-add hold (OFF) plus immutable PB10 parent history
         uses: actions/checkout@v4
         with:
           repository: CosmicCuddle/mod-playerbots
           ref: a612093fde694fadf79d0bd790fcd82cb4f9b6b8
           path: acore/modules/mod-playerbots
+          fetch-depth: 0
           persist-credentials: false
       - name: Checkout IP #130 disabled-IP stale-login revocation + guarded publisher/false-only adapter
         uses: actions/checkout@v4

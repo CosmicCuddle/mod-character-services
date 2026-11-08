@@ -45,10 +45,25 @@ The original command without this option remains unchanged: **untracked files ar
 
 This reads additional offline source metadata and directory names; it must not be run on the owner's actual production folder without separate explicit owner permission. Synthetic hosted tests use fake private filenames and ignored files without touching the real machine. No automatic backup, deletion, restore, SQL, module activation, launch, installation, data upload, remote access or feature toggle is introduced. The new child remains **review-only**; rollback is to discard it and keep the original #21 draft source inventory tool.
 
+## Optional OTHER custom module source revision check — separately opt-in (8 November 2026)
+
+The default inventory enumerates safe names of extra source folders, but **does not report their independent Git revisions**. The offline source copy may have more owner custom modules than our initial five-repository CI (e.g., Guild Strongholds, Autobalance, AHBot, Challenges, events). This is a **coverage gap, not evidence they are installed**. A second new opt-in can inspect independent Git metadata for at most **20 additional module directories**:
+
+```bash
+python3 tools/offline_source_inventory.py --core "/path/to/your/offline/azerothcore-source" --inspect-other-module-revisions
+```
+
+- The **old/default output remains unchanged**; only this flag adds the `other_module_source_revisions` and `other_module_source_revisions_omitted` fields (in JSON) or an extra human-readable source-revision section.
+- Each result shows only its existing privacy-filtered label, Git root/commit SHA and **yes/no/unknown tracked file modification**. Combine with the *separate explicit opt-in* `--check-untracked-presence` if the owner later approves checking for untracked files (still only yes/no/unknown, never names). Directory names that resemble credentials are redacted.
+- The **20-directory cap** bounds Git reads/time and prevents accidental scans of arbitrarily large source trees. More folders are counted as **omitted** and remain unknown. A `no-independent-git` module is not necessarily missing or clean; it might be tracked by the Core checkout or copied from a ZIP. The root Git commit may not represent that module's own author/version.
+- A source directory present on disk **does not** mean it is enabled, compiled, loaded or deployed. Git metadata does not establish running binary, actual config/DB/DBC/client, restorable backup or player gameplay. No source or user files are written by this tool. It still must only run on the owner-approved **offline copy**.
+
+Synthetic source tests verify a second independent fake module's actual commit, modified tracked files, unknown/non-independent source checkout, redacted directory labels, default absence of new schema, both CLI output modes and a >20-folder truncated case. These are review-only CI tests, not live-host observations.
+
 ## Synthetic CI and release gate
 
 A dedicated GitHub Actions workflow runs Python standard-library unit tests against **ephemeral fake local Git repositories** created in temporary directories; synthetic private-config contents are never shown. It separately tests the CLI JSON/human output on the disposable GitHub checkout. Strict change allowlist limits this review-only PR to `tools/offline_source_inventory.py`, `tests/test_offline_source_inventory.py`, this document, and its CI workflow, with **no runtime/config/SQL changes**. Hosted CI must finish and be inspected before anyone claims a pass.
 
 **Release readiness remains BLOCKED:** after collecting a source-only inventory later, need an independently verified active binary/source hash (not merely a folder), all loaded module list (including Autobalance/AHBot/Challenge), exact effective configuration with sensitive values kept private, DB migrations, DBC/client patch baseline, correctly scoped backup+actual restore rehearsal, explicit test-server approval, and real 3.3.5a F01–F20 plus paid/Hunter/quest855 gameplay acceptance. All experimental features stay OFF.
 
-**Rollback:** Discard this tool-only development DRAFT; no database, gameplay, service, machine configuration, host or owner source copy has been modified by Maintenance. Preserve the passing five-fork build #19 and pending separate PB #6 combined S4 #20 as distinct, noninterchangeable evidence.
+**Rollback:** Discard this tool-only development DRAFT; no database, gameplay, service, machine configuration, host or owner source copy has been modified by Maintenance. Preserve the historical passing five-fork build #19. Separately, the newer owner Core2/PB7/IP120/Naxx292/Services16 combined [CI-only DRAFT #25](https://github.com/CosmicCuddle/mod-character-services/pull/25) passed [native S4 #42413815378](https://github.com/CosmicCuddle/mod-character-services/actions/runs/42413815378), **26/26 steps on exact pins**; neither CI proves the owner-host S5 inventory or gameplay.

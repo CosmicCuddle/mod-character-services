@@ -143,6 +143,43 @@ class SourceOnlyInventory(unittest.TestCase):
         self.assertEqual(result["components"]["Core"]["untracked_presence"],
                          "unknown")
 
+    def test_undecodable_git_output_is_unknown_not_absent(self):
+        # Git filenames are raw bytes. A bad locale decode must not crash
+        # or incorrectly state there are no untracked source files.
+        real_run = subprocess.run
+
+        def git_with_undecodable_names(command, *args, **kwargs):
+            if "ls-files" in command:
+                raise UnicodeDecodeError("utf-8", b"\\xff", 0, 1,
+                                         "invalid UTF-8 in source name")
+            return real_run(command, *args, **kwargs)
+
+        with mock.patch.object(inventory.subprocess, "run",
+                               side_effect=git_with_undecodable_names):
+            info = inventory.git_info(self.pb, check_untracked_presence=True)
+        self.assertEqual(info["checkout"], "git-root")
+        self.assertEqual(info["tracked_changes"], "no")
+        self.assertEqual(info["untracked_presence"], "unknown")
+        self.assertNotIn("invalid UTF-8", json.dumps(info))
+
+    @unittest.skipUnless(os.name == "posix" and
+                         "utf" in sys.getfilesystemencoding().lower(),
+                         "raw invalid UTF-8 filename test requires POSIX UTF-8")
+    def test_actual_invalid_utf8_untracked_filename_fails_closed(self):
+        # Synthetic filename/data only. Never print the path or traceback.
+        filename = os.fsdecode(b"fixture-\\xff-PRIVATE-DO-NOT-LOG")
+        try:
+            (self.pb / filename).write_bytes(b"SECRET_TEST_VALUE")
+        except (OSError, UnicodeError):
+            self.skipTest("filesystem does not support raw invalid bytes")
+        result = inventory.inventory(self.pb, check_untracked_presence=True)
+        self.assertEqual(result["components"]["Core"]["checkout"], "git-root")
+        self.assertEqual(result["components"]["Core"]["untracked_presence"],
+                         "unknown")
+        serialized = json.dumps(result)
+        self.assertNotIn("PRIVATE-DO-NOT-LOG", serialized)
+        self.assertNotIn("SECRET_TEST_VALUE", serialized)
+
     def test_no_paths_or_credential_values_in_human_or_json_output(self):
         for is_json in (False, True):
             output = io.StringIO()

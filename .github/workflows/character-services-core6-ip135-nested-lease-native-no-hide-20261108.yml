@@ -3,7 +3,7 @@ name: Owner Core6 IP135 atomic-reload identity guard plus three F14 query branch
 on:
   pull_request:
     branches:
-      - ci/cs01-core6-pb10-ip135-nested-lease-worldserver-20261108
+      - ci/cs01-core6-pb10-ip134-generation-no-hide-20261108
     paths:
       - '.github/workflows/character-services-core6-ip135-nested-lease-native-no-hide-20261108.yml'
   push:

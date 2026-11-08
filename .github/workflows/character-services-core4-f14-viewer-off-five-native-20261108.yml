@@ -25,7 +25,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: CosmicCuddle/azerothcore-wotlk
-          ref: c1987453006edf61f5693bf667941ed436255bb8
+          ref: 4e0a3452ea50299e9a80cb250927417d3cc4b652
           path: acore
           persist-credentials: false
       - name: Checkout owner PB DRAFT #7 (integrated reset tests + default-OFF diagnostic and retirement)
@@ -73,7 +73,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git -C acore rev-parse HEAD)" = c1987453006edf61f5693bf667941ed436255bb8
+          test "$(git -C acore rev-parse HEAD)" = 4e0a3452ea50299e9a80cb250927417d3cc4b652
           test "$(git -C acore/modules/mod-playerbots rev-parse HEAD)" = 4f6974ecec081c2006df54ff54aa4cc40cb63f55
           test "$(git -C acore/modules/mod-individual-progression rev-parse HEAD)" = 38d6844af45eb1d89679299c9a8d466ae64375d5
           test "$(git -C acore/modules/mod-naxxramas-core rev-parse HEAD)" = 51d0611476358286505aed3ca806ea250f644f66
@@ -220,7 +220,7 @@ jobs:
           ip=$core/modules/mod-individual-progression
           target=src/server/game/Entities/Player/PlayerSettings.cpp
           player=src/server/game/Entities/Player/Player.h
-          test "$(git -C "$core" rev-parse HEAD)" = c1987453006edf61f5693bf667941ed436255bb8
+          test "$(git -C "$core" rev-parse HEAD)" = 4e0a3452ea50299e9a80cb250927417d3cc4b652
           test "$(git -C "$core" rev-parse "HEAD:$target")" = 2bcac6abe4a8960a62241a582d86ba28e46b2719
           test "$(git -C "$core" rev-parse "HEAD:$player")" = 81920131574af4a00e6d0f213c428b25750d9aa0
           test -z "$(git -C "$core" status --porcelain)"
@@ -253,7 +253,7 @@ jobs:
         run: |
           set -euo pipefail
           core=acore
-          test "$(git -C "$core" rev-parse HEAD)" = c1987453006edf61f5693bf667941ed436255bb8
+          test "$(git -C "$core" rev-parse HEAD)" = 4e0a3452ea50299e9a80cb250927417d3cc4b652
           grep -Fq 'bool ShouldF14SuppressCreatureForViewer(' "$core/src/server/game/Scripting/ScriptMgr.h"
           grep -Fq 'OnF14ShouldSuppressCreatureForViewer(' "$core/src/server/game/Scripting/ScriptDefines/WorldObjectScript.h"
           grep -Fq 'CALL_ENABLED_BOOLEAN_HOOKS_WITH_DEFAULT_FALSE(' "$core/src/server/game/Scripting/ScriptDefines/WorldObjectScript.cpp"
@@ -261,6 +261,7 @@ jobs:
           grep -Fq 'IsF14CreatureSuppressedFromClientView(this, target)' "$core/src/server/game/Entities/Player/PlayerUpdates.cpp"
           test "$(grep -Fc 'IsF14CreatureSuppressedFromClientView(this, target)' "$core/src/server/game/Entities/Player/PlayerUpdates.cpp")" = 4
           python3 -B -m unittest discover -s "$core/tests/cosmic_f14" -p 'test_creature_client_viewer_query_source.py' -v
+          python3 -B -m unittest discover -s "$core/tests/cosmic_f14_unwired_hook" -p 'test_f14_unwired_hook_source.py' -v
           for compiler in g++ clang++; do
             for mode in c++17 c++20; do
               "$compiler" -std="$mode" -Wall -Wextra -Werror -pedantic "$core/tests/cosmic_f14/creature_client_viewer_query_policy.cpp" -o /tmp/f14-client-policy

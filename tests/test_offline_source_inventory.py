@@ -87,6 +87,181 @@ class SourceOnlyInventory(unittest.TestCase):
         self.assertEqual(second["components"]["Core"]["tracked_changes"], "yes")
         self.assertEqual(second["untracked_files"], "not_checked")
 
+    def test_optional_untracked_presence_keeps_historical_default(self):
+        original = inventory.inventory(self.pb)
+        self.assertEqual(original["untracked_files"], "not_checked")
+        self.assertNotIn("untracked_presence", original["components"]["Core"])
+        empty = inventory.inventory(self.pb, check_untracked_presence=True)
+        self.assertEqual(empty["components"]["Core"]["untracked_presence"], "no")
+        self.assertEqual(empty["untracked_files"],
+                         "checked_presence_only_in_independent_git_checkouts")
+        # The returned schema never includes a sensitive local filename.
+        secret_name = "PRIVATE_DB_PASSWORD_NOT_FOR_LOGS.txt"
+        (self.pb / secret_name).write_text("SENSITIVE_FIXTURE_ONLY", encoding="utf-8")
+        found = inventory.inventory(self.pb, check_untracked_presence=True)
+        self.assertEqual(found["components"]["Core"]["untracked_presence"], "yes")
+        self.assertNotIn(secret_name, json.dumps(found))
+        self.assertNotIn("SENSITIVE_FIXTURE_ONLY", json.dumps(found))
+
+    def test_ignored_untracked_source_does_not_create_false_alarm(self):
+        (self.pb / ".gitignore").write_text("secret-ignored.conf\n", encoding="utf-8")
+        git(self.pb, "add", ".gitignore")
+        git(self.pb, "-c", "user.name=Fixture", "-c",
+            "user.email=fixture@example.invalid", "commit", "-qm", "ignore-secret")
+        (self.pb / "secret-ignored.conf").write_text("NOT_TO_PRINT", encoding="utf-8")
+        checked = inventory.inventory(self.pb, check_untracked_presence=True)
+        self.assertEqual(checked["components"]["Core"]["untracked_presence"], "no")
+        self.assertEqual(checked["components"]["Core"]["tracked_changes"], "no")
+
+    def test_opted_in_cli_never_reports_untracked_names_or_secret_values(self):
+        secret_file = self.pb / "private-token-NEVER_REVEAL.txt"
+        secret_file.write_text("PRIVATE_CONFIG_VALUE", encoding="utf-8")
+        for as_json in (False, True):
+            output = io.StringIO()
+            args = [str(SCRIPT), "--core", str(self.pb),
+                    "--check-untracked-presence"]
+            if as_json:
+                args.append("--json")
+            with mock.patch.object(sys, "argv", args):
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(inventory.main(), 0)
+            printed = output.getvalue()
+            self.assertNotIn(str(self.home), printed)
+            self.assertNotIn(secret_file.name, printed)
+            self.assertNotIn("PRIVATE_CONFIG_VALUE", printed)
+            if as_json:
+                parsed = json.loads(printed)
+                self.assertEqual(parsed["components"]["Core"]["untracked_presence"],
+                                 "yes")
+            else:
+                self.assertIn("untracked-present=yes", printed)
+                self.assertIn("source paths never printed", printed)
+
+    def test_opted_in_unknown_if_git_unavailable(self):
+        with mock.patch.object(inventory.shutil, "which", return_value=None):
+            result = inventory.inventory(self.pb, check_untracked_presence=True)
+        self.assertEqual(result["components"]["Core"]["untracked_presence"],
+                         "unknown")
+
+    def test_other_module_checkout_revisions_are_opt_in_only(self):
+        extra = self.core / "modules" / "mod-owner-extra"
+        commit = setup_repo(extra)
+        default = inventory.inventory(self.core)
+        self.assertNotIn("other_module_source_revisions", default)
+        self.assertNotIn("other_module_source_revisions_omitted", default)
+        self.assertIn("mod-owner-extra",
+                      default["additional_source_module_directories"])
+
+        checked = inventory.inventory(
+            self.core, inspect_other_module_revisions=True)
+        states = checked["other_module_source_revisions"]
+        self.assertEqual(checked["other_module_source_revisions_omitted"], 0)
+        by_name = {entry["name"]: entry for entry in states}
+        self.assertEqual(by_name["mod-owner-extra"]["sha"], commit)
+        self.assertEqual(by_name["mod-owner-extra"]["tracked_changes"], "no")
+        self.assertEqual(by_name["custom-client-safe"]["checkout"],
+                         "no-independent-git")
+        self.assertNotIn("private-secret-token", json.dumps(checked))
+        self.assertIn("[name-redacted]", by_name)
+        self.assertNotIn("mod-playerbots", by_name)
+
+        (extra / "README.md").write_text("local custom edit\\n",
+                                         encoding="utf-8")
+        modified = inventory.inventory(
+            self.core, inspect_other_module_revisions=True)
+        extra_state = next(
+            x for x in modified["other_module_source_revisions"]
+            if x["name"] == "mod-owner-extra")
+        self.assertEqual(extra_state["tracked_changes"], "yes")
+
+    def test_other_module_git_revision_optin_bounded_and_optional_untracked(self):
+        extra = self.core / "modules" / "mod-owner-extra"
+        setup_repo(extra)
+        (extra / "SENSITIVE_UNTRACKED_NAME").write_text(
+            "private values never printed", encoding="utf-8")
+        for n in range(24):
+            (self.core / "modules" / ("custom-extra-%02d" % n)).mkdir()
+
+        checked = inventory.inventory(
+            self.core, check_untracked_presence=True,
+            inspect_other_module_revisions=True)
+        states = checked["other_module_source_revisions"]
+        self.assertEqual(len(states), 20)
+        self.assertEqual(
+            checked["other_module_source_revisions_omitted"], 7)
+        self.assertEqual(checked["untracked_files"],
+                         "checked_presence_only_in_independent_git_checkouts")
+        # Sorted extras over limit are honestly marked omitted, not clean.
+        self.assertNotIn("SENSITIVE_UNTRACKED_NAME", json.dumps(checked))
+        for state in states:
+            self.assertIn(state["tracked_changes"], ("yes", "no", "unknown"))
+        self.assertNotIn("mod-playerbots",
+                         [state["name"] for state in states])
+
+    def test_other_module_checkout_cli_json_and_human_redact(self):
+        extra = self.core / "modules" / "mod-owner-extra"
+        commit = setup_repo(extra)
+        for as_json in (False, True):
+            output = io.StringIO()
+            args = [str(SCRIPT), "--core", str(self.core),
+                    "--inspect-other-module-revisions"]
+            if as_json:
+                args.append("--json")
+            with mock.patch.object(sys, "argv", args):
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(inventory.main(), 0)
+            printed = output.getvalue()
+            self.assertNotIn(str(self.home), printed)
+            self.assertNotIn("private-secret-token", printed)
+            self.assertNotIn(self.secret, printed)
+            if as_json:
+                parsed = json.loads(printed)
+                self.assertTrue(any(
+                    item["sha"] == commit for item in
+                    parsed["other_module_source_revisions"]))
+                self.assertEqual(parsed["production_change_approved"], False)
+            else:
+                self.assertIn("Other SOURCE checkout revisions", printed)
+                self.assertIn(commit, printed)
+                self.assertIn("NOT loaded modules", printed)
+
+    def test_undecodable_git_output_is_unknown_not_absent(self):
+        # Git filenames are raw bytes. A bad locale decode must not crash
+        # or incorrectly state there are no untracked source files.
+        real_run = subprocess.run
+
+        def git_with_undecodable_names(command, *args, **kwargs):
+            if "ls-files" in command:
+                raise UnicodeDecodeError("utf-8", b"\xff", 0, 1,
+                                         "invalid UTF-8 in source name")
+            return real_run(command, *args, **kwargs)
+
+        with mock.patch.object(inventory.subprocess, "run",
+                               side_effect=git_with_undecodable_names):
+            info = inventory.git_info(self.pb, check_untracked_presence=True)
+        self.assertEqual(info["checkout"], "git-root")
+        self.assertEqual(info["tracked_changes"], "no")
+        self.assertEqual(info["untracked_presence"], "unknown")
+        self.assertNotIn("invalid UTF-8", json.dumps(info))
+
+    @unittest.skipUnless(os.name == "posix" and
+                         "utf" in sys.getfilesystemencoding().lower(),
+                         "raw invalid UTF-8 filename test requires POSIX UTF-8")
+    def test_actual_invalid_utf8_untracked_filename_fails_closed(self):
+        # Synthetic filename/data only. Never print the path or traceback.
+        filename = os.fsdecode(b"fixture-\xff-PRIVATE-DO-NOT-LOG")
+        try:
+            (self.pb / filename).write_bytes(b"SECRET_TEST_VALUE")
+        except (OSError, UnicodeError):
+            self.skipTest("filesystem does not support raw invalid bytes")
+        result = inventory.inventory(self.pb, check_untracked_presence=True)
+        self.assertEqual(result["components"]["Core"]["checkout"], "git-root")
+        self.assertEqual(result["components"]["Core"]["untracked_presence"],
+                         "unknown")
+        serialized = json.dumps(result)
+        self.assertNotIn("PRIVATE-DO-NOT-LOG", serialized)
+        self.assertNotIn("SECRET_TEST_VALUE", serialized)
+
     def test_no_paths_or_credential_values_in_human_or_json_output(self):
         for is_json in (False, True):
             output = io.StringIO()

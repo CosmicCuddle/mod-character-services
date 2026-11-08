@@ -46,7 +46,7 @@ def safe_name(name: str) -> str:
     return "[name-redacted]"
 
 
-def git_info(folder: Path) -> dict[str, Any]:
+def git_info(folder: Path, check_untracked_presence: bool = False) -> dict[str, Any]:
     """Metadata-only; does not print paths or file content/status filenames."""
     if folder.is_symlink():
         return {"checkout": "symlink-not-inspected", "sha": None,
@@ -73,7 +73,10 @@ def git_info(folder: Path) -> dict[str, Any]:
                 check=False,
             )
             return p.stdout.strip() if p.returncode == 0 else None
-        except (OSError, subprocess.TimeoutExpired):
+        except (OSError, subprocess.TimeoutExpired, UnicodeError):
+            # Git may report names using bytes that are invalid under the
+            # runner's locale. Never crash, print a private path/traceback or
+            # turn an undecodable untracked-name list into a false "no".
             return None
 
     toplevel = call("rev-parse", "--show-toplevel")
@@ -93,7 +96,7 @@ def git_info(folder: Path) -> dict[str, Any]:
         return {"checkout": "unborn-or-invalid", "sha": None,
                 "tracked_changes": "unknown"}
     porcelain = call("status", "--porcelain=v1", "--untracked-files=no")
-    return {
+    result = {
         "checkout": "git-root",
         "sha": sha.lower(),
         "tracked_changes": (
@@ -101,14 +104,25 @@ def git_info(folder: Path) -> dict[str, Any]:
             "yes" if porcelain else "no"
         ),
     }
+    if check_untracked_presence:
+        # Optional, explicit source-copy opt-in. The filenames exist only
+        # inside subprocess output: never log, return or persist them.
+        # --directory avoids enumerating full build trees unnecessarily.
+        items = call("ls-files", "--others", "--exclude-standard",
+                     "--directory", "-z")
+        result["untracked_presence"] = (
+            "unknown" if items is None else "yes" if items else "no"
+        )
+    return result
 
 
-def inventory(core: Path) -> dict[str, Any]:
+def inventory(core: Path, check_untracked_presence: bool = False,
+              inspect_other_module_revisions: bool = False) -> dict[str, Any]:
     """Read-only source-tree census. Never inspect config or database content."""
     if core.is_symlink() or not core.is_dir():
         raise ValueError("Core must be an existing, non-symlink directory")
 
-    components: dict[str, Any] = {"Core": git_info(core)}
+    components: dict[str, Any] = {"Core": git_info(core, check_untracked_presence)}
     mods = core / "modules"
     folders: dict[str, Path] = {}
     if mods.is_dir() and not mods.is_symlink():
@@ -122,15 +136,29 @@ def inventory(core: Path) -> dict[str, Any]:
                      None)
         if found is not None:
             claimed.add(found.name.casefold())
-        components[label] = git_info(found) if found is not None else {
+        components[label] = git_info(found, check_untracked_presence) if found is not None else {
             "checkout": "missing", "sha": None, "tracked_changes": "unknown"
         }
 
-    additional = [safe_name(path.name)
-                  for name, path in sorted(folders.items())
-                  if name not in claimed]
+    if check_untracked_presence:
+        for state in components.values():
+            state.setdefault("untracked_presence", "unknown")
+
+    other_paths = [path for name, path in sorted(folders.items())
+                   if name not in claimed]
+    additional = [safe_name(path.name) for path in other_paths]
     if len(additional) > 200:
         additional = additional[:200] + ["[additional-names-omitted]"]
+    # Explicit opt-in: inspect other source directories, never assume loaded
+    # modules. Bound Git calls so a large or hostile copy cannot hang for an
+    # unbounded number of module folders. Anything beyond 20 stays UNKNOWN.
+    other_revisions = []
+    if inspect_other_module_revisions:
+        for path in other_paths[:20]:
+            other_revisions.append({
+                "name": safe_name(path.name),
+                **git_info(path, check_untracked_presence),
+            })
     for label, state in components.items():
         expected = PINNED_CI_TUPLE.get(label)
         state["matches_historical_green_ci_sha"] = (
@@ -138,11 +166,12 @@ def inventory(core: Path) -> dict[str, Any]:
             else "yes" if state["sha"] == expected else "no"
         )
 
-    return {
+    report = {
         "scope": "source folders only (not active server or installed binary)",
         "components": components,
         "additional_source_module_directories": additional,
-        "untracked_files": "not_checked",
+        "untracked_files": ("checked_presence_only_in_independent_git_checkouts"
+                            if check_untracked_presence else "not_checked"),
         "installed_and_loaded_modules": "not_verified",
         "running_core_binary": "not_verified",
         "effective_config_and_paid_F14_flags": "not_verified",
@@ -151,6 +180,11 @@ def inventory(core: Path) -> dict[str, Any]:
         "backups_restorable": "not_verified",
         "production_change_approved": False,
     }
+    if inspect_other_module_revisions:
+        report["other_module_source_revisions"] = other_revisions
+        report["other_module_source_revisions_omitted"] = max(
+            0, len(other_paths) - len(other_revisions))
+    return report
 
 
 def main() -> int:
@@ -161,9 +195,14 @@ def main() -> int:
                         help="existing AzerothCore SOURCE checkout (not live install)")
     parser.add_argument("--json", action="store_true",
                         help="emit local JSON (no file written)")
+    parser.add_argument("--check-untracked-presence", action="store_true",
+                        help="optional: yes/no only for untracked Git source files; never list names")
+    parser.add_argument("--inspect-other-module-revisions", action="store_true",
+                        help="opt-in Git metadata for up to 20 unknown module source folders")
     args = parser.parse_args()
     try:
-        result = inventory(args.core)
+        result = inventory(args.core, args.check_untracked_presence,
+                           args.inspect_other_module_revisions)
     except (ValueError, OSError):
         parser.error("The provided Core source folder could not be inspected")
         return 2
@@ -176,12 +215,28 @@ def main() -> int:
             print(f"{name}: {state['checkout']} "
                   f"sha={sha or 'UNKNOWN'} "
                   f"tracked-modified={state['tracked_changes']} "
-                  f"matches-older-CI={state['matches_historical_green_ci_sha']}")
+                  + (f"untracked-present={state['untracked_presence']} "
+                     if args.check_untracked_presence else "")
+                  + f"matches-older-CI={state['matches_historical_green_ci_sha']}")
         extras = result["additional_source_module_directories"]
         print("Other module source directories: "
               + (", ".join(extras) if extras else "none detected"))
-        print("UNVERIFIED: untracked files; actual loaded modules; active "
-              "binary; config flags; DB/SQL; DBC/client; backups; deployment.")
+        if args.inspect_other_module_revisions:
+            print("Other SOURCE checkout revisions (opt-in; NOT loaded modules):")
+            for state in result["other_module_source_revisions"]:
+                print(f"  {state['name']}: {state['checkout']} "
+                      f"sha={state.get('sha') or 'UNKNOWN'} "
+                      f"tracked-modified={state['tracked_changes']}"
+                      + (f" untracked-present={state.get('untracked_presence', 'unknown')}"
+                         if args.check_untracked_presence else ""))
+            if result["other_module_source_revisions_omitted"]:
+                print("Additional SOURCE directories left uninspected: "
+                      + str(result["other_module_source_revisions_omitted"]))
+        print(("CHECKED PRESENCE ONLY: untracked source paths never printed. "
+               if args.check_untracked_presence else
+               "UNVERIFIED: untracked files. ")
+              + "UNVERIFIED: actual loaded modules; active "
+                "binary; config flags; DB/SQL; DBC/client; backups; deployment.")
         print("No config values or database rows printed; no server files or services changed.")
     return 0
 

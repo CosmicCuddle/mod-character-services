@@ -3,7 +3,7 @@ name: Owner Core6 IP134 atomic-reload identity guard plus three F14 query branch
 on:
   pull_request:
     branches:
-      - ci/cs01-core6-pb10-ip134-generation-no-hide-20261108
+      - ci/cs01-core6-pb10-ip133-atomic-reload-three-query-no-hide-20261108
     paths:
       - '.github/workflows/character-services-core6-ip134-reload-generation-native-false-20261108.yml'
   push:

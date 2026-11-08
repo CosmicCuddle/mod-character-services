@@ -75,6 +75,23 @@ jobs:
           assert value['running_core_binary']=='not_verified'
           print('PASS optional presence-only check, no private source filenames output')
           PY
+      - name: Verify extra custom module source revision opt-in never implies installation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/offline_source_inventory.py --core . --inspect-other-module-revisions --json > /tmp/inventory-extra-optional-json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/inventory-extra-optional-json',encoding='utf-8') as f:
+              value=json.load(f)
+          assert isinstance(value['other_module_source_revisions'],list)
+          assert isinstance(value['other_module_source_revisions_omitted'],int)
+          assert len(value['other_module_source_revisions'])<=20
+          assert value['installed_and_loaded_modules']=='not_verified'
+          assert value['running_core_binary']=='not_verified'
+          assert value['production_change_approved'] is False
+          print('PASS extra custom module Git metadata opt-in is bounded and does NOT report deployment')
+          PY
       - name: Declare confidence boundary
         run: |
           echo 'No user server, live files, database, effective config, real binaries, DBC/client or secrets accessed.'

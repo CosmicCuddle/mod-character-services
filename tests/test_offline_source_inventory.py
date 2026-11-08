@@ -150,7 +150,7 @@ class SourceOnlyInventory(unittest.TestCase):
 
         def git_with_undecodable_names(command, *args, **kwargs):
             if "ls-files" in command:
-                raise UnicodeDecodeError("utf-8", b"\\xff", 0, 1,
+                raise UnicodeDecodeError("utf-8", b"\xff", 0, 1,
                                          "invalid UTF-8 in source name")
             return real_run(command, *args, **kwargs)
 
@@ -167,7 +167,7 @@ class SourceOnlyInventory(unittest.TestCase):
                          "raw invalid UTF-8 filename test requires POSIX UTF-8")
     def test_actual_invalid_utf8_untracked_filename_fails_closed(self):
         # Synthetic filename/data only. Never print the path or traceback.
-        filename = os.fsdecode(b"fixture-\\xff-PRIVATE-DO-NOT-LOG")
+        filename = os.fsdecode(b"fixture-\xff-PRIVATE-DO-NOT-LOG")
         try:
             (self.pb / filename).write_bytes(b"SECRET_TEST_VALUE")
         except (OSError, UnicodeError):

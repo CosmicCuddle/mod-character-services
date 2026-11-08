@@ -142,7 +142,12 @@ jobs:
           test "$(git -C acore/modules/mod-naxxramas-core rev-parse HEAD:src/Systems/MasterLootQuestGive.h)" = dc1b9c1d53bfc6405187efb06a5425e4ffd9fd91
           # Require reviewed F14 login source, P3 raw copy-only archive and strict OFF
           # defaults from the newly integrated development source.
-          test "$(git -C "$ip" rev-parse HEAD:src/IndividualProgressionF14LoginPolicy.h)" = c4e774459c73d96fb55e42891ca2626b2b91389a
+          # Only this pure header changed from IP136 to IP137. Verify BOTH
+          # immutable old and new blobs, not a weaker grep or broad allowlist.
+          test "$(git -C "$ip" rev-parse 29fa9a179039ebf292ee137005cbdd112407581a:src/IndividualProgressionF14LoginPolicy.h)" = c4e774459c73d96fb55e42891ca2626b2b91389a
+          test "$(git -C "$ip" rev-parse HEAD:src/IndividualProgressionF14LoginPolicy.h)" = c251f53cb2b36c2131fb8351eb553b2422b4482f
+          grep -Fq 'savedStage > 18 || progressionLimit < 0 || progressionLimit > 18' "$ip/src/IndividualProgressionF14LoginPolicy.h"
+          grep -Fq 'return progressionLimit == 0 ||' "$ip/src/IndividualProgressionF14LoginPolicy.h"
           grep -Fqx 'IndividualProgression.F14.PreserveVerifiedRandomBotStageOnLogin = 0' "$ip/conf/individualProgression.conf.dist"
           # IP includes independent skip-only RandomBot group
           # safeguard. This is incomplete F14 and MUST remain opt-in/OFF.

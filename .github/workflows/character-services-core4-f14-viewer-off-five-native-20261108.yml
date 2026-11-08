@@ -3,7 +3,7 @@ name: Owner Core4 F14 client query OFF + PB7+IP120+Naxx292+Services S4 (NO LAUNC
 on:
   pull_request:
     branches:
-      - ci/cs01-core2-pb7-integrated-off-ip46-naxx292-services-20261107
+      - ci/cs01-core2-pb7-ip120-off-native-compat-20261107
     paths:
       - '.github/workflows/character-services-core4-f14-viewer-off-five-native-20261108.yml'
   push:

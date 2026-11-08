@@ -127,6 +127,23 @@ def git_info(folder: Path, check_untracked_presence: bool = False,
             "unknown" if other is None or ignored is None else
             "yes" if contains_sql(other) or contains_sql(ignored) else "no"
         )
+        # Check every Git-tracked staged, unstaged or deleted SQL path
+        # without copying SQL text. Do not run external diff/textconv helpers.
+        # With --no-renames, a renamed SQL retains its original deleted name.
+        # Git may hash worktree contents internally; only the yes/no/unknown
+        # result is exposed and no source paths leave this function.
+        tracked = call("diff", "--no-ext-diff", "--no-textconv",
+                       "--no-renames", "--name-only", "-z", "HEAD", "--")
+        result["dirty_tracked_sql_presence"] = (
+            "unknown" if tracked is None else
+            "yes" if contains_sql(tracked) else "no"
+        )
+        observations = (result["local_only_sql_presence"],
+                        result["dirty_tracked_sql_presence"])
+        result["git_scoped_sql_changes"] = (
+            "yes" if "yes" in observations else
+            "unknown" if "unknown" in observations else "no"
+        )
     return result
 
 
@@ -163,6 +180,8 @@ def inventory(core: Path, check_untracked_presence: bool = False,
     if check_local_sql_presence:
         for state in components.values():
             state.setdefault("local_only_sql_presence", "unknown")
+            state.setdefault("dirty_tracked_sql_presence", "unknown")
+            state.setdefault("git_scoped_sql_changes", "unknown")
 
     other_paths = [path for name, path in sorted(folders.items())
                    if name not in claimed]
@@ -194,6 +213,8 @@ def inventory(core: Path, check_untracked_presence: bool = False,
                             if check_untracked_presence else "not_checked"),
         "local_only_sql_files": ("checked_presence_only_in_independent_git_checkouts"
                                  if check_local_sql_presence else "not_checked"),
+        "dirty_tracked_sql_files": ("checked_presence_only_in_independent_git_checkouts"
+                                     if check_local_sql_presence else "not_checked"),
         "installed_and_loaded_modules": "not_verified",
         "running_core_binary": "not_verified",
         "effective_config_and_paid_F14_flags": "not_verified",
@@ -222,7 +243,7 @@ def main() -> int:
     parser.add_argument("--inspect-other-module-revisions", action="store_true",
                         help="opt-in Git metadata for up to 20 unknown module source folders")
     parser.add_argument("--check-local-sql-presence", action="store_true",
-                        help="opt-in yes/no/unknown for ignored OR untracked .sql in independent Git roots")
+                        help="opt-in yes/no/unknown for ignored, untracked AND dirty tracked .sql in independent Git roots")
     args = parser.parse_args()
     try:
         result = inventory(args.core, args.check_untracked_presence,
@@ -243,6 +264,8 @@ def main() -> int:
                   + (f"untracked-present={state['untracked_presence']} "
                      if args.check_untracked_presence else "")
                   + (f"local-only-sql={state['local_only_sql_presence']} "
+                     f"tracked-sql-dirty={state['dirty_tracked_sql_presence']} "
+                     f"git-sql-changes={state['git_scoped_sql_changes']} "
                      if args.check_local_sql_presence else "")
                   + f"matches-older-CI={state['matches_historical_green_ci_sha']}")
         extras = result["additional_source_module_directories"]
@@ -257,6 +280,8 @@ def main() -> int:
                       + (f" untracked-present={state.get('untracked_presence', 'unknown')}"
                          if args.check_untracked_presence else "")
                       + (f" local-only-sql={state.get('local_only_sql_presence', 'unknown')}"
+                         f" tracked-sql-dirty={state.get('dirty_tracked_sql_presence', 'unknown')}"
+                         f" git-sql-changes={state.get('git_scoped_sql_changes', 'unknown')}"
                          if args.check_local_sql_presence else ""))
             if result["other_module_source_revisions_omitted"]:
                 print("Additional SOURCE directories left uninspected: "
@@ -264,10 +289,10 @@ def main() -> int:
         print(("CHECKED PRESENCE ONLY: untracked source paths never printed. "
                if args.check_untracked_presence else
                "UNVERIFIED: untracked files. ")
-              + ("LOCAL-ONLY SQL PRESENCE IN INDEPENDENT GIT ROOTS CHECKED; "
-                 "NOT BACKED UP OR CHECKED OUTSIDE TREE. "
+              + ("GIT-SCOPED SQL CHANGES CHECKED: ignored/untracked PLUS "
+                 "staged/unstaged/deleted tracked SQL; NOT A BACKUP. "
                  if args.check_local_sql_presence else
-                 "UNVERIFIED: ignored/untracked local SQL. ")
+                 "UNVERIFIED: ignored/untracked/dirty tracked local SQL. ")
               + "UNVERIFIED: actual loaded modules; active "
                 "binary; config flags; DB/SQL; DBC/client; backups; deployment.")
         print("No config values or database rows printed; no server files or services changed.")

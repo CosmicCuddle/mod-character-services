@@ -39,7 +39,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: CosmicCuddle/mod-individual-progression
-          ref: 4d64f44f55d594e1b75313ad00519dc447d56f03
+          ref: 7e240511c13ba42dbd903161f5163f5e79a58aae
           path: acore/modules/mod-individual-progression
           persist-credentials: false
       - name: Checkout Naxx #292 P1-P4/P4-H + Hunter ammo/quiver + F15 path redaction
@@ -75,7 +75,7 @@ jobs:
           set -euo pipefail
           test "$(git -C acore rev-parse HEAD)" = 6a0c1dba53617c77353718eb4338fda634fca5eb
           test "$(git -C acore/modules/mod-playerbots rev-parse HEAD)" = afc38bf798cd1c96a097ebf5229e041ed0dc4253
-          test "$(git -C acore/modules/mod-individual-progression rev-parse HEAD)" = 4d64f44f55d594e1b75313ad00519dc447d56f03
+          test "$(git -C acore/modules/mod-individual-progression rev-parse HEAD)" = 7e240511c13ba42dbd903161f5163f5e79a58aae
           test "$(git -C acore/modules/mod-naxxramas-core rev-parse HEAD)" = 51d0611476358286505aed3ca806ea250f644f66
           test "$(git -C acore/modules/mod-character-services rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
           cs=acore/modules/mod-character-services
@@ -368,7 +368,7 @@ jobs:
           set -euo pipefail
           ip=acore/modules/mod-individual-progression
           core=acore
-          test "$(git -C "$ip" rev-parse HEAD)" = 4d64f44f55d594e1b75313ad00519dc447d56f03
+          test "$(git -C "$ip" rev-parse HEAD)" = 7e240511c13ba42dbd903161f5163f5e79a58aae
           test "$(git -C "$core" rev-parse HEAD)" = 6a0c1dba53617c77353718eb4338fda634fca5eb
           grep -Fq 'WORLDOBJECTHOOK_ON_F14_VIEWER_PLAYER_SUPPRESSION_QUERY' "$core/src/server/game/Scripting/ScriptDefines/WorldObjectScript.h"
           grep -Fq 'WORLDOBJECTHOOK_ON_F14_WHO_GUID_EXCLUSION_QUERY' "$core/src/server/game/Scripting/ScriptDefines/WorldObjectScript.h"
@@ -386,7 +386,7 @@ jobs:
         run: |
           set -euo pipefail
           ip=acore/modules/mod-individual-progression
-          test "$(git -C "$ip" rev-parse HEAD)" = 4d64f44f55d594e1b75313ad00519dc447d56f03
+          test "$(git -C "$ip" rev-parse HEAD)" = 7e240511c13ba42dbd903161f5163f5e79a58aae
           grep -Fq 'TryReadF14VerifiedActorPublication(' "$ip/src/IndividualProgression.cpp"
           grep -Fq '_f14VerifiedActorPublications.erase(guid);' "$ip/src/IndividualProgression.cpp"
           grep -Fq 'F14VerifiedActorPublication{fullGuid, accountId, race, loginEpoch}' "$ip/src/IndividualProgression.cpp"
@@ -399,13 +399,14 @@ jobs:
         run: |
           set -euo pipefail
           ip=acore/modules/mod-individual-progression
-          test "$(git -C "$ip" rev-parse HEAD)" = 4d64f44f55d594e1b75313ad00519dc447d56f03
+          test "$(git -C "$ip" rev-parse HEAD)" = 7e240511c13ba42dbd903161f5163f5e79a58aae
           # Latest IP134 child of IP132: atomic config reload clears actor publication
           # and the inherited source contract checks the stronger locked gating.
           # The new IP134 lease MUST originate at OnPlayerLogin BEFORE the
           # original Playerbots verified RandomBot predicate, and resist
           # config reload generation changes with no positive listener.
           python3 -B -m unittest discover -s "$ip/tests" -p test_ip_f14_actor_publication_reload_generation_source.py -v
+          python3 -B -m unittest discover -s "$ip/tests" -p test_ip_f14_group_floor_source.py -v
           grep -Fq 'CaptureF14ActorPublicationLoginLease();' "$ip/src/IndividualProgressionPlayer.cpp"
           grep -Fq 'sourceLease.generation ==' "$ip/src/IndividualProgression.cpp"
           grep -Fq 'previousGeneration + 1, std::memory_order_release' "$ip/src/IndividualProgression.cpp"

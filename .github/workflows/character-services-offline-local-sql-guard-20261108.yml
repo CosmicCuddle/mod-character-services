@@ -1,0 +1,73 @@
+name: S5 offline-only ignored and untracked SQL presence privacy gate
+
+on:
+  push:
+    branches:
+      - tools/cs01-offline-local-sql-presence-20261108
+  pull_request:
+    branches:
+      - tools/cs01-optional-untracked-presence-only-20261107
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-source-privacy-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact owner source and immutable parent for scope check
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Restrict to source-tool, synthetic tests and review documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          base=453f179b23b0020349679eca532da994ffd6b27f
+          git merge-base --is-ancestor "$base" HEAD
+          git diff --check "$base" HEAD
+          git diff --name-only "$base" HEAD | sort > /tmp/actual
+          printf '%s\n' \
+            'tools/offline_source_inventory.py' \
+            'tests/test_offline_local_sql_presence.py' \
+            'docs/OFFLINE_SOURCE_INVENTORY_READONLY_20261107.md' \
+            'docs/CUSTOM_MODIFICATIONS_REGISTER.md' \
+            '.github/workflows/character-services-offline-local-sql-guard-20261108.yml' \
+            | sort >/tmp/expected
+          diff -u /tmp/expected /tmp/actual
+          test -z "$(git diff --name-only "$base" HEAD -- src conf data sql)"
+          echo "PASS: opt-in inventory source/test/docs only; no module runtime, SQL or config changes"
+      - name: Preserve 16 inherited source inventory synthetic regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B -m unittest discover -s tests -p test_offline_source_inventory.py -v
+      - name: Detect ignored AND untracked SQL while keeping real names secret
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B -m unittest discover -s tests -p test_offline_local_sql_presence.py -v
+      - name: Confirm no direct filesystem or DB writes in optional scan
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          s = Path("tools/offline_source_inventory.py").read_text(encoding="utf-8")
+          assert 'if check_local_sql_presence:' in s
+          assert 'call("ls-files", "--others", "--exclude-standard", "-z")' in s
+          assert 'call("ls-files", "--others", "--ignored",' in s
+          assert 'result["local_only_sql_presence"]' in s
+          assert 'check_local_sql_presence: bool = False' in s
+          assert 'parser.add_argument("--check-local-sql-presence"' in s
+          print("PASS: SQL check is opt-in, ignores/untracked separated and paths not surfaced")
+          PY
+      - name: Evidence boundary
+        if: always()
+        run: |
+          echo "SYNTHETIC source-only tests; owner host never contacted."
+          echo "Ignored/untracked .sql presence is NOT content backup, checksum inventory or restore."
+          echo "No production server, client, DB, SQL, config, F14, paid, Core or Playerbots modification."

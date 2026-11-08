@@ -1,0 +1,531 @@
+name: Owner Core6 IP137 atomic-reload identity guard plus three F14 query branches FALSE
+
+on:
+  pull_request:
+    branches:
+      - ci/cs01-core6-pb10-ip136-optin-login-source-worldserver-20261108
+    paths:
+      - '.github/workflows/character-services-core6-ip137-invalid-cap-native-no-hide-20261108.yml'
+  push:
+    branches:
+      - ci/cs01-core6-pb10-ip137-invalid-cap-native-20261108
+    paths:
+      - '.github/workflows/character-services-core6-ip137-invalid-cap-native-no-hide-20261108.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  pinned-paid-vendor-worldserver-link:
+    name: Core6 PB10 IP137 3 F14 query codepaths COMPILED, no hide
+    runs-on: ubuntu-24.04
+    timeout-minutes: 170
+    steps:
+      - name: Checkout owner Core fork DRAFT #4 (paid guard intact; F14 client query compile-time OFF)
+        uses: actions/checkout@v4
+        with:
+          repository: CosmicCuddle/azerothcore-wotlk
+          ref: 6a0c1dba53617c77353718eb4338fda634fca5eb
+          path: acore
+          persist-credentials: false
+      - name: Checkout owner PB DRAFT #10 (failed-preflight abort, audited admission OFF)
+        uses: actions/checkout@v4
+        with:
+          repository: CosmicCuddle/mod-playerbots
+          ref: afc38bf798cd1c96a097ebf5229e041ed0dc4253
+          path: acore/modules/mod-playerbots
+          persist-credentials: false
+      - name: Checkout IP #130 disabled-IP stale-login revocation + guarded publisher/false-only adapter
+        uses: actions/checkout@v4
+        with:
+          repository: CosmicCuddle/mod-individual-progression
+          ref: 7ca897e2397216405f910f46e6a12e5b4e0b987b
+          path: acore/modules/mod-individual-progression
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Checkout Naxx #292 P1-P4/P4-H + Hunter ammo/quiver + F15 path redaction
+        uses: actions/checkout@v4
+        with:
+          repository: CosmicCuddle/Mod-Naxxramas-Core
+          ref: 51d0611476358286505aed3ca806ea250f644f66
+          path: acore/modules/mod-naxxramas-core
+          persist-credentials: false
+      - name: Checkout exact Character Services development PR
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          path: acore/modules/mod-character-services
+          persist-credentials: false
+      - name: Refuse any source/config/SQL changes in this compatibility-only child
+        shell: bash
+        run: |
+          set -euo pipefail
+          cs=acore/modules/mod-character-services
+          parent=41c1c3412c539b05105200f2dc93e8c39743b1d0
+          git -C "$cs" merge-base --is-ancestor "$parent" HEAD
+          git -C "$cs" diff --check "$parent" HEAD
+          git -C "$cs" diff --name-only "$parent" HEAD > /tmp/owner-ip120-compat-files
+          test "$(wc -l < /tmp/owner-ip120-compat-files)" = 1
+          grep -Fxq '.github/workflows/character-services-core6-ip137-invalid-cap-native-no-hide-20261108.yml' /tmp/owner-ip120-compat-files
+          test -z "$(git -C "$cs" diff --name-only "$parent" HEAD -- src conf data sql scripts)"
+          echo 'PASS: exactly one CI workflow, no runtime/SQL/config/code changes; Core6 is pinned in external source checkout only'
+      - name: Assert all exact pins, owner snapshots, disabled defaults and IP API
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C acore rev-parse HEAD)" = 6a0c1dba53617c77353718eb4338fda634fca5eb
+          test "$(git -C acore/modules/mod-playerbots rev-parse HEAD)" = afc38bf798cd1c96a097ebf5229e041ed0dc4253
+          test "$(git -C acore/modules/mod-individual-progression rev-parse HEAD)" = 7ca897e2397216405f910f46e6a12e5b4e0b987b
+          test "$(git -C acore/modules/mod-naxxramas-core rev-parse HEAD)" = 51d0611476358286505aed3ca806ea250f644f66
+          test "$(git -C acore/modules/mod-character-services rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          cs=acore/modules/mod-character-services
+          ip=acore/modules/mod-individual-progression
+          pb=acore/modules/mod-playerbots
+          grep -Fqx 'Playerbots.ResetQuestsPreserveQuestIds =' "$pb/conf/playerbots.conf.dist"
+          grep -Fqx 'Playerbots.F14TrackNewRandomBotBirth = 0' "$pb/conf/playerbots.conf.dist"
+          grep -Fq 'bool F14TrackNewRandomBotBirth = false;' "$pb/src/PlayerbotAIConfig.h"
+          grep -Fq 'GetOption<bool>("Playerbots.F14TrackNewRandomBotBirth", false)' "$pb/src/PlayerbotAIConfig.cpp"
+          test -s "$pb/src/Bot/F14NewRandomBotBirthProbe.h"
+          grep -Fq 'NewRandomBotBirthProbe::Instance().RecordCandidate(' "$pb/src/Bot/Factory/RandomPlayerbotFactory.cpp"
+          grep -Fq 'NewRandomBotBirthProbe::Instance().ObserveAdmission(' "$pb/src/Bot/PlayerbotMgr.cpp"
+          grep -Fq 'NewRandomBotBirthProbe::Instance().Retire(' "$pb/src/Bot/PlayerbotMgr.cpp"
+          test -s "$pb/tests/test_f14_earned_marker_reset_source.py"
+          grep -Fq 'preserveMask != 0 && sRandomPlayerbotMgr.IsRandomBot(bot)' "$pb/src/Bot/Factory/PlayerbotFactory.cpp"
+          grep -Fq 'ResetQuestsPreserveMask.store(markerMask, std::memory_order_release)' "$pb/src/PlayerbotAIConfig.cpp"
+          grep -Fqx 'CharacterServices.ExpansionUnlock.Enable = 0' "$cs/conf/character_services.conf.dist"
+          grep -Fqx 'IndividualProgression.PaidExpansion.Enable = 0' "$ip/conf/individualProgression.conf.dist"
+          grep -Fq 'PurchaseExpansion(Player* player' "$ip/src/IndividualProgression.h"
+          grep -Fq 'GetAccountEffectiveProgression(uint32 accountId)' "$ip/src/IndividualProgression.h"
+          grep -Fq 'GetAccountEffectiveProgression(uint32 accountId)' "$ip/src/IndividualProgressionExpansion.cpp"
+          grep -Fq 'AccountProgressionForTierService(' "$cs/src/CharacterServices.cpp"
+          grep -Fqx '#define COSMIC_IP_PAID_EXPANSION_API_VERSION 1' "$ip/src/IndividualProgression.h"
+          grep -Fq 'player->GetQuestStatus(INTO_THE_BREACH) == QUEST_STATUS_COMPLETE' "$ip/src/IndividualProgressionExpansion.cpp"
+          grep -Fq 'player->IncompleteQuest(INTO_THE_BREACH);' "$ip/src/IndividualProgressionExpansion.cpp"
+          grep -Fq 'MustHoldPaidTbcQuestReward(player)' "$ip/src/IndividualProgressionExpansion.cpp"
+          grep -Fq 'CMSG_QUESTGIVER_CHOOSE_REWARD' "$ip/src/IndividualProgressionExpansion.cpp"
+          grep -Fq 'new IndividualProgression_PaidTbcQuestRewardPacketGuard();' "$ip/src/IndividualProgressionExpansion.cpp"
+          # Keep strict receipt integrity: all eight canonical slots
+          # must be written before one character SaveToDB, no new paid mode.
+          grep -Fq 'for (uint32 slot = 0; slot < ReceiptPolicy::Slots; ++slot)' "$ip/src/IndividualProgressionExpansion.cpp"
+          grep -Fq 'stagedLedger.fields[slot]' "$ip/src/IndividualProgressionExpansion.cpp"
+          # Verify grandfather receipt integrity on newer IP source.
+          grep -Fq 'index < ReceiptPolicy::Slots' "$ip/src/IndividualProgressionExpansion.cpp"
+          grep -Fq 'receipt->second.fields[index] = value;' "$ip/src/IndividualProgressionExpansion.cpp"
+          grep -Fq 'Your quest and TBC purchase are preserved.' "$ip/src/IndividualProgressionExpansion.cpp"
+          test -s "$ip/tests/paid_receipt_full_slot_model.cpp"
+          test -s "$ip/tests/test_ip_paid_expansion_source.py"
+          test -f "$ip/tests/test_ip_paid_tbc_disabled_progression_sale.py"
+          grep -Fq 'F15 RAW ARCHIVE REFUSED' "acore/modules/mod-naxxramas-core/scripts/f15_raw_archive.py"
+          grep -Fq 'player->GetQuestStatus(INTO_THE_BREACH) == QUEST_STATUS_REWARDED' "$ip/src/IndividualProgressionExpansion.cpp"
+          grep -Fq 'PurchaseExpansion(' "$cs/src/CharacterServices.cpp"
+          grep -Fq 'CharacterServicesGatePolicy::CanOfferGenericTier(' "$cs/src/CharacterServices.cpp"
+          grep -Fqx 'NaxxramasCore.MasterLootQuestGive.Enabled = 0' "acore/modules/mod-naxxramas-core/conf/mod_naxxramas_core.conf.dist"
+          grep -Fqx 'NaxxramasCore.QuestLootPickupAuthorization.Enabled = 0' "acore/modules/mod-naxxramas-core/conf/mod_naxxramas_core.conf.dist"
+          grep -Fqx 'NaxxramasCore.QuestLootSparkleGuard.Enabled = 0' "acore/modules/mod-naxxramas-core/conf/mod_naxxramas_core.conf.dist"
+          # Combined #292 includes owner-approved P2 legal vendor fallback,
+          # rare Doomshot allotment and Molten Core equipped quiver draft.
+          # Every new opt-in remains OFF in the distributed config.
+          grep -Fqx 'NaxxramasCore.BotConsumables.HunterAmmo.Enabled = 0' "acore/modules/mod-naxxramas-core/conf/mod_naxxramas_core.conf.dist"
+          grep -Fqx 'NaxxramasCore.BotConsumables.HunterAmmo.AllowSelectedNonVendor = 0' "acore/modules/mod-naxxramas-core/conf/mod_naxxramas_core.conf.dist"
+          grep -Fqx 'NaxxramasCore.BotConsumables.HunterAmmo.AllowOneDoomshotAllocation = 0' "acore/modules/mod-naxxramas-core/conf/mod_naxxramas_core.conf.dist"
+          grep -Fqx 'NaxxramasCore.BotConsumables.HunterAmmo.MoltenCore.FillQuiver.Enabled = 0' "acore/modules/mod-naxxramas-core/conf/mod_naxxramas_core.conf.dist"
+          test -s acore/modules/mod-naxxramas-core/src/Systems/HunterAmmoProvision.cpp
+          test -s acore/modules/mod-naxxramas-core/tests/test_hunter_ammo_consumables.py
+
+          grep -Fqx 'NaxxramasCore.WarlockRitual.SecondStagePilot.Enabled = 0' "acore/modules/mod-naxxramas-core/conf/mod_naxxramas_core.conf.dist"
+          grep -Fq 'AddMasterLootQuestGiveScripts();' "acore/modules/mod-naxxramas-core/src/NaxxramasCore_loader.cpp"
+          test -f "acore/modules/mod-naxxramas-core/src/Systems/MasterLootQuestGive.cpp"
+          # Both previous development streams are composed without changing
+          # paid flags or granting a tier. Verify the specific reviewed blobs.
+          test "$(git -C "$ip" rev-parse HEAD:src/cs_individualProgression.cpp)" = dce8e36d5133c0bac5e8b0f269675781dd2776ba
+          test "$(git -C acore/modules/mod-naxxramas-core rev-parse HEAD:src/Systems/MasterLootQuestGive.h)" = dc1b9c1d53bfc6405187efb06a5425e4ffd9fd91
+          # Require reviewed F14 login source, P3 raw copy-only archive and strict OFF
+          # defaults from the newly integrated development source.
+          # Only this pure header changed from IP136 to IP137. Verify BOTH
+          # immutable old and new blobs, not a weaker grep or broad allowlist.
+          test "$(git -C "$ip" rev-parse 29fa9a179039ebf292ee137005cbdd112407581a:src/IndividualProgressionF14LoginPolicy.h)" = c4e774459c73d96fb55e42891ca2626b2b91389a
+          test "$(git -C "$ip" rev-parse HEAD:src/IndividualProgressionF14LoginPolicy.h)" = c251f53cb2b36c2131fb8351eb553b2422b4482f
+          grep -Fq 'savedStage > 18 || progressionLimit < 0 || progressionLimit > 18' "$ip/src/IndividualProgressionF14LoginPolicy.h"
+          grep -Fq 'return progressionLimit == 0 ||' "$ip/src/IndividualProgressionF14LoginPolicy.h"
+          grep -Fqx 'IndividualProgression.F14.PreserveVerifiedRandomBotStageOnLogin = 0' "$ip/conf/individualProgression.conf.dist"
+          # IP includes independent skip-only RandomBot group
+          # safeguard. This is incomplete F14 and MUST remain opt-in/OFF.
+          grep -Fqx 'IndividualProgression.F14.ProtectVerifiedRandomBotGroupFloor = 0' "$ip/conf/individualProgression.conf.dist"
+          # IP120 added optional paths not present at the older IP46 pin.
+          # Require each new intervention OFF in the distributed config.
+          grep -Fqx 'IndividualProgression.F14.ForceVerifiedRandomBotTbcFloorOnLogin = 0' "$ip/conf/individualProgression.conf.dist"
+          grep -Fqx 'IndividualProgression.F14.ExperimentalRndbotPlayerVisibility = 0' "$ip/conf/individualProgression.conf.dist"
+          grep -Fqx 'IndividualProgression.F14.ExperimentalAttackLifecycleRegistry = 0' "$ip/conf/individualProgression.conf.dist"
+          grep -Fqx 'IndividualProgression.F14.ProtectVerifiedRandomBotStageFloor = 0' "$ip/conf/individualProgression.conf.dist"
+          # Confirm IP120 itself fails closed on the owner Core6 which does
+          # not supply the old disposable WHO/refresh/attack/corpse hooks.
+          grep -Fq '#if !defined(COSMIC_F14_VISIBILITY_REFRESH_HOOK_VERSION) || COSMIC_F14_VISIBILITY_REFRESH_HOOK_VERSION < 1' "$ip/src/IndividualProgression.cpp"
+          grep -Fq 'sIndividualProgression->f14ForceVerifiedRandomBotTbcFloorOnLogin = false;' "$ip/src/IndividualProgression.cpp"
+          grep -Fq 'sIndividualProgression->f14ExperimentalRndbotPlayerVisibility = false;' "$ip/src/IndividualProgression.cpp"
+          grep -Fq 'sIndividualProgression->f14ExperimentalAttackLifecycleRegistry = false;' "$ip/src/IndividualProgression.cpp"
+          grep -Fq 'COSMIC_F14_VISIBILITY_REFRESH_HOOK_VERSION) && COSMIC_F14_VISIBILITY_REFRESH_HOOK_VERSION >= 1' "$ip/src/IndividualProgressionPlayer.cpp"
+          grep -Fq 'ShouldSkipF14VerifiedRandomBotGroupDowngrade(' "$ip/src/IndividualProgression.cpp"
+          grep -Fq 'ShouldSkipF14VerifiedRandomBotGroupDowngrade(player, leaderState)' "$ip/src/IndividualProgressionPlayer.cpp"
+          test -s "$ip/src/IndividualProgressionF14LifecycleScript.cpp"
+          grep -Fq 'class IndividualProgressionF14MapUpdateFrameObserver final : public AllMapScript' "$ip/src/IndividualProgressionF14LifecycleScript.cpp"
+          grep -Fq '#if defined(COSMIC_IP_F14_MAP_UPDATE_FRAME_OBSERVER) && COSMIC_IP_F14_MAP_UPDATE_FRAME_OBSERVER >= 1' "$ip/src/IndividualProgressionF14LifecycleScript.cpp"
+          grep -Fq 'new IndividualProgressionF14MapUpdateFrameObserver();' "$ip/src/IndividualProgressionF14LifecycleScript.cpp"
+          # Do not define COSMIC_IP_F14_MAP_UPDATE_FRAME_OBSERVER, or apply
+          # historical temporary Grim Core visibility/attack/corpse overlays.
+          test -s "$ip/tests/f14_group_sync_floor.cpp"
+          test -s "$ip/tests/test_ip_f14_group_floor_source.py"
+          test "$(git -C "$ip" rev-parse HEAD:tests/test_ip_paid_expansion_source.py)" = c17425404bfcc942811f362910da5d83b7d62429
+          test -s acore/modules/mod-naxxramas-core/scripts/f15_raw_archive.py
+          test -s acore/modules/mod-naxxramas-core/tests/test_f15_raw_archive.py
+          test -s acore/modules/mod-naxxramas-core/tests/test_f15_supervised_retention.py
+          test -s acore/modules/mod-naxxramas-core/scripts/f15_retention_preview.py
+          test -s acore/modules/mod-naxxramas-core/scripts/f15_supervised_storage_audit.py
+          # Verify the newer child draws protected bodies from the same base,
+          # rather than accidentally dropping prior Naxx Hunter/P4/P3 work.
+          test -s acore/modules/mod-naxxramas-core/src/Systems/QuestLootSparkleGuard.cpp
+          test -s acore/modules/mod-naxxramas-core/src/Systems/QuestLootProtection.cpp
+          # Preserve actual H1 pickup while omitting denied H2 quest sparkle.
+          test -s acore/modules/mod-naxxramas-core/src/Systems/QuestLootTurnGuard.h
+          grep -Fq 'WouldDenyQuestSlotForViewer' acore/modules/mod-naxxramas-core/src/Systems/QuestLootProtection.cpp
+          grep -Fq 'WouldDenyQuestSlotForViewer' acore/modules/mod-naxxramas-core/src/Systems/QuestLootSparkleGuard.cpp
+          grep -Fq 's_pickupTurnEnabled.load' acore/modules/mod-naxxramas-core/src/Systems/QuestLootSparkleGuard.cpp
+          grep -Fq 'TURN.visible_normal_roll_keeps_B_sparkle' acore/modules/mod-naxxramas-core/tests/p4_h2_sparkle/sparkle_harness.cpp
+          test -s acore/modules/mod-naxxramas-core/scripts/f15_supervised_retention.py
+          test -z "$(sed -n '99p' "$cs/src/CharacterServices.cpp")"
+          test -s "$cs/docs/source-snapshots/CharacterServices-owner-20261101.cpp"
+          test -s "$cs/docs/source-snapshots/character_services-owner-20261101.conf.dist"
+          echo 'PASS: pinned source / OFF switches / separate historical owner snapshots'
+      - name: Verify PB #3 creation probe source and original header standalone natively (NO BOT START)
+        shell: bash
+        run: |
+          set -euo pipefail
+          pb=acore/modules/mod-playerbots
+          python3 -B -m unittest discover -s "$pb/tests" -p 'test_f14_new_randombot_birth_probe_source.py' -v
+          for compiler in g++ clang++; do
+            "$compiler" -std=c++17 -pthread -O1 -Wall -Wextra -Werror -pedantic \
+              "$pb/tests/f14_new_randombot_birth_probe.cpp" -I"$pb/src/Bot" -o /tmp/pb-f14-birth-test
+            /tmp/pb-f14-birth-test
+          done
+          echo 'PASS: original PB #3 creation probe source/header, default OFF, no stage grant'
+
+      - name: Verify IP120 retains original paid/floor safety plus default-OFF F14 observer code (NO HOST)
+        shell: bash
+        run: |
+          set -euo pipefail
+          ip=acore/modules/mod-individual-progression
+          python3 -B -m unittest discover -s "$ip/tests" -p 'test_ip_f14_group_floor_source.py' -v
+          g++ -std=c++17 -Wall -Wextra -Werror -pedantic -O2 "$ip/tests/f14_group_sync_floor.cpp" -o /tmp/ip-f14-group-floor
+          /tmp/ip-f14-group-floor | tee /tmp/ip-f14-floor.out
+          grep -Fq 'F14 GROUP FLOOR MODEL 1805/1805 passed' /tmp/ip-f14-floor.out
+      - name: Verify inherited paid raw-receipt protection in owner Core fork (NO PATCH)
+        shell: bash
+        run: |
+          set -euo pipefail
+          core=acore
+          ip=$core/modules/mod-individual-progression
+          target=src/server/game/Entities/Player/PlayerSettings.cpp
+          player=src/server/game/Entities/Player/Player.h
+          test "$(git -C "$core" rev-parse HEAD)" = 6a0c1dba53617c77353718eb4338fda634fca5eb
+          test "$(git -C "$core" rev-parse "HEAD:$target")" = 2bcac6abe4a8960a62241a582d86ba28e46b2719
+          test "$(git -C "$core" rev-parse "HEAD:$player")" = 81920131574af4a00e6d0f213c428b25750d9aa0
+          test -z "$(git -C "$core" status --porcelain)"
+          grep -Fq 'SerializeSettingsData(parsed) == data' "$core/$target"
+          grep -Fq 'if (!PlayerSettingsStore::IsCanonicalPaidReceiptRow(source, data))' "$core/$target"
+          grep -Fq 'if (unsafePaidRow)' "$core/$target"
+          grep -Fq 'm_preserveMalformedPaidSettingsRow' "$core/$target"
+          grep -Fq 'bool m_preserveMalformedPaidSettingsRow = false;' "$core/$player"
+          grep -Fq 'ReceiptPolicy::DecodeRaw' "$ip/src/IndividualProgressionExpansion.cpp"
+          grep -Fq 'player->IsBeingTeleportedFar()' "$ip/src/IndividualProgressionExpansion.cpp"
+          python3 -B -m unittest discover -s "$core/tests/cosmic_paid_receipt_guard" -p 'test_paid_receipt_guard_source.py' -v
+          echo 'PASS: exact two-file raw-paid Core guard committed in owner fork; no runner patch, no DB writes'
+
+      - name: Verify owner PB10 combined 17 reset + 6 birth + 5 retire source contracts (NO PATCH)
+        shell: bash
+        run: |
+          set -euo pipefail
+          pb=acore/modules/mod-playerbots
+          test "$(git -C "$pb" rev-parse HEAD)" = afc38bf798cd1c96a097ebf5229e041ed0dc4253
+          grep -Fqx 'Playerbots.F14TrackNewRandomBotBirth = 0' "$pb/conf/playerbots.conf.dist"
+          python3 -B -m unittest discover -s "$pb/tests" -p test_f14_holder_retire_source.py -v
+          python3 -B -m unittest discover -s "$pb/tests" -p test_f14_new_randombot_birth_probe_source.py -v
+          python3 -B -m unittest discover -s "$pb/tests" -p test_f14_earned_marker_reset_source.py -v
+          test "$(grep -c '^    def test_' "$pb/tests/test_f14_earned_marker_reset_source.py")" = 17
+          test -z "$(git -C "$pb" status --porcelain)"
+          echo 'PASS owner PlayerbotMgr.cpp unconditional retirement on all three holder exits, admission OFF'
+
+      - name: Verify exact PB10 F14 result callback and orphan-quest veto source under default OFF
+        shell: bash
+        run: |
+          set -euo pipefail
+          pb=acore/modules/mod-playerbots
+          test "$(git -C "$pb" rev-parse HEAD)" = afc38bf798cd1c96a097ebf5229e041ed0dc4253
+          grep -Fqx 'Playerbots.F14TrackNewRandomBotBirth = 0' "$pb/conf/playerbots.conf.dist"
+          grep -Fqx 'Playerbots.F14AuditNewBirthCommitReadback = 0' "$pb/conf/playerbots.conf.dist"
+          grep -Fq 'bool F14AuditNewBirthCommitReadback = false;' "$pb/src/PlayerbotAIConfig.h"
+          grep -Fq 'CharacterDatabase.AsyncCommitTransaction(birthTrans)' "$pb/src/Bot/Factory/RandomPlayerbotFactory.cpp"
+          grep -Fq 'SELECT COUNT(*) FROM character_settings WHERE guid = {}' "$pb/src/Bot/Factory/RandomPlayerbotFactory.cpp"
+          grep -Fq 'SELECT COUNT(*) FROM character_queststatus_rewarded WHERE guid = {}' "$pb/src/Bot/Factory/RandomPlayerbotFactory.cpp"
+          grep -Fq 'SELECT COUNT(*) FROM character_queststatus WHERE guid = {}' "$pb/src/Bot/Factory/RandomPlayerbotFactory.cpp"
+          grep -Fq 'HasAuditedRowAndUnretiredAdmission' "$pb/src/Bot/F14NewRandomBotBirthProbe.h"
+          python3 -B -m unittest discover -s "$pb/tests" -p test_f14_birth_commit_readback_source.py -v
+          g++ -std=c++17 -Wall -Wextra -Werror -pedantic -O1 -pthread \
+            -I"$pb/src/Bot" "$pb/tests/f14_birth_commit_readback_model.cpp" -o /tmp/pb-f14-readback-audit
+          /tmp/pb-f14-readback-audit
+          test -z "$(git -C "$pb" status --porcelain)"
+          echo 'PASS PB10 source and pure registry audit; NO real DB transaction, new birth grant or live test'
+
+      - name: Verify PB10 fail-closed rejected newborn cannot fall back to stock SaveToDB
+        shell: bash
+        run: |
+          set -euo pipefail
+          pb=acore/modules/mod-playerbots
+          test "$(git -C "$pb" rev-parse HEAD)" = afc38bf798cd1c96a097ebf5229e041ed0dc4253
+          grep -Fqx 'Playerbots.F14TrackNewRandomBotBirth = 0' "$pb/conf/playerbots.conf.dist"
+          grep -Fqx 'Playerbots.F14AuditNewBirthCommitReadback = 0' "$pb/conf/playerbots.conf.dist"
+          grep -Fq 'if (f14AuditRequested && !f14BeforeSaveRelevantRowsAbsent)' "$pb/src/Bot/Factory/RandomPlayerbotFactory.cpp"
+          python3 -B -m unittest discover -s "$pb/tests" -p test_f14_birth_preflight_abort_source.py -v
+          test -z "$(git -C "$pb" status --porcelain)"
+          echo 'PASS PB10 fail-closed optional audit guard: no save or cache after failed read-only GUID preflight'
+          echo 'NO DB, race stage8, observer rights, WHO, NPC/corpse hide, owner host or gameplay test'
+
+      - name: Assert owner Core6 new CREATE/OUT consumer is inert (macro OFF), preserve original paid
+        shell: bash
+        run: |
+          set -euo pipefail
+          core=acore
+          test "$(git -C "$core" rev-parse HEAD)" = 6a0c1dba53617c77353718eb4338fda634fca5eb
+          grep -Fq 'bool ShouldF14SuppressCreatureForViewer(' "$core/src/server/game/Scripting/ScriptMgr.h"
+          grep -Fq 'OnF14ShouldSuppressCreatureForViewer(' "$core/src/server/game/Scripting/ScriptDefines/WorldObjectScript.h"
+          grep -Fq 'CALL_ENABLED_BOOLEAN_HOOKS_WITH_DEFAULT_FALSE(' "$core/src/server/game/Scripting/ScriptDefines/WorldObjectScript.cpp"
+          grep -Fq 'COSMIC_F14_CREATURE_CLIENT_VIEWER_QUERY_EXPERIMENT >= 1' "$core/src/server/game/Entities/Player/PlayerUpdates.cpp"
+          grep -Fq 'IsF14CreatureSuppressedFromClientView(this, target)' "$core/src/server/game/Entities/Player/PlayerUpdates.cpp"
+          test "$(grep -Fc 'IsF14CreatureSuppressedFromClientView(this, target)' "$core/src/server/game/Entities/Player/PlayerUpdates.cpp")" = 4
+          python3 -B -m unittest discover -s "$core/tests/cosmic_f14" -p 'test_creature_client_viewer_query_source.py' -v
+          python3 -B -m unittest discover -s "$core/tests/cosmic_f14_unwired_hook" -p 'test_f14_unwired_hook_source.py' -v
+          for compiler in g++ clang++; do
+            for mode in c++17 c++20; do
+              "$compiler" -std="$mode" -Wall -Wextra -Werror -pedantic "$core/tests/cosmic_f14/creature_client_viewer_query_policy.cpp" -o /tmp/f14-client-policy
+              /tmp/f14-client-policy | grep -Fq 'F14 CLIENT VIEWER POLICY 128/128 SAFE'
+            done
+          done
+          echo 'PASS: new real PlayerUpdates.cpp F14 query call sites compiled OFF; no positive listener, no runtime F14 concealment'
+
+      - name: Core6 WHO GUID source gate - preserve human and Altbot fail-visible defaults (OFF)
+        shell: bash
+        run: |
+          set -euo pipefail
+          core=acore
+          test "$(git -C "$core" rev-parse HEAD)" = 6a0c1dba53617c77353718eb4338fda634fca5eb
+          grep -Fq 'COSMIC_F14_WHO_GUID_QUERY_EXPERIMENT >= 1' "$core/src/server/game/Handlers/MiscHandler.cpp"
+          grep -Fq 'ShouldF14ExcludeWhoEntryForViewer(_player, target.GetGuid(), race)' "$core/src/server/game/Handlers/MiscHandler.cpp"
+          grep -Fq 'WORLDOBJECTHOOK_ON_F14_WHO_GUID_EXCLUSION_QUERY' "$core/src/server/game/Scripting/ScriptDefines/WorldObjectScript.h"
+          python3 -B -m unittest discover -s "$core/tests/cosmic_f14_who" -p test_f14_who_guid_source.py -v
+          python3 -B -m unittest discover -s "$core/tests/cosmic_f14_unwired_hook" -p test_f14_unwired_hook_source.py -v
+          test -z "$(git -C "$core" status --porcelain)"
+          echo 'PASS exact default-OFF Core6 /who GUID source, both counts and preserved original F14 default FALSE listener'
+          echo 'DOES NOT prove verified headless RNDBOT identity, WHO client acceptance or stage8.'
+
+      - name: Core6 real Blood Elf Draenei player actor query must remain OFF and default FALSE
+        shell: bash
+        run: |
+          set -euo pipefail
+          core=acore
+          test "$(git -C "$core" rev-parse HEAD)" = 6a0c1dba53617c77353718eb4338fda634fca5eb
+          grep -Fq 'COSMIC_F14_PLAYER_CLIENT_VIEWER_QUERY_EXPERIMENT >= 1' "$core/src/server/game/Entities/Player/PlayerUpdates.cpp"
+          grep -Fq 'ShouldF14SuppressPlayerForViewer(viewer, actor)' "$core/src/server/game/Entities/Player/PlayerUpdates.cpp"
+          grep -Fq 'WORLDOBJECTHOOK_ON_F14_VIEWER_PLAYER_SUPPRESSION_QUERY' "$core/src/server/game/Scripting/ScriptDefines/WorldObjectScript.h"
+          grep -Fq 'Player const* /*viewer*/, Player const* /*actor*/) { return false; }' "$core/src/server/game/Scripting/ScriptDefines/WorldObjectScript.h"
+          python3 -B -m unittest discover -s "$core/tests/cosmic_f14_player" -p test_f14_player_client_viewer_source.py -v
+          python3 -B -m unittest discover -s "$core/tests/cosmic_f14_who" -p test_f14_who_guid_source.py -v
+          python3 -B -m unittest discover -s "$core/tests/cosmic_f14" -p test_creature_client_viewer_query_source.py -v
+          test -z "$(git -C "$core" status --porcelain)"
+          echo 'PASS Core6 default-OFF player, WHO and creature source; no positive F14 identity/hide'
+
+      - name: Verify native owner Core + Playerbots DB and locale APIs match (NO CI PATCHES)
+        shell: bash
+        run: |
+          set -euo pipefail
+          core=acore
+          pb=$core/modules/mod-playerbots
+          core_db=$core/src/server/database/Database/ModuleDatabasePool.h
+          pb_db=$pb/src/Db/PlayerbotsDatabase.h
+          core_common=$core/src/common/Common.h
+          pb_locale=$pb/src/Util/LocaleColumns.h
+          # The earlier Core 8daffdabe DID NOT expose either of these exact APIs:
+          # its module DB queue overload was CreateConnection(queue), and its
+          # Common.h lacked IsLocaleRegistered. Both old runner shims are WRONG
+          # for the owner Core 0d754d19. Do not rewrite either owner fork.
+          test "$(git -C "$core" rev-parse HEAD:src/server/database/Database/ModuleDatabasePool.h)" = c3e76c1d354c26f8da00fce179175f994cf9783c
+          test "$(git -C "$core" rev-parse HEAD:src/common/Common.h)" = d0fe192f119b8fe1c9a1afcdd79f973f5525d409
+          test "$(git -C "$pb" rev-parse HEAD:src/Db/PlayerbotsDatabase.h)" = 6973d4fad807caf5fffc595aca63c20b52281a9f
+          test "$(git -C "$pb" rev-parse HEAD:src/Util/LocaleColumns.h)" = 46fd0a6b9ab8369669224353aada325d5d7b275c
+          grep -Fq 'virtual MySQLConnection* CreateAsyncConnection(ProducerConsumerQueue<SQLOperation*>* queue,' "$core_db"
+          grep -Fq 'MySQLConnection* CreateAsyncConnection(ProducerConsumerQueue<SQLOperation*>* queue,' "$pb_db"
+          grep -Fq 'inline bool IsLocaleRegistered(LocaleConstant locale) { return locale < TOTAL_LOCALES && localeNames[locale]; }' "$core_common"
+          grep -Fq 'if (!IsLocaleRegistered(locale))' "$pb_locale"
+          test -z "$(git -C "$core" status --porcelain)"
+          test -z "$(git -C "$pb" status --porcelain)"
+          echo 'PASS: owner-fork Core/PB native interfaces match at exact blobs, no temporary C++ edits'
+
+      - name: Verify IP128 Core6 new WHO and actor ABI bridge is false-only with old hooks intact
+        shell: bash
+        run: |
+          set -euo pipefail
+          ip=acore/modules/mod-individual-progression
+          core=acore
+          test "$(git -C "$ip" rev-parse HEAD)" = 7ca897e2397216405f910f46e6a12e5b4e0b987b
+          test "$(git -C "$core" rev-parse HEAD)" = 6a0c1dba53617c77353718eb4338fda634fca5eb
+          grep -Fq 'WORLDOBJECTHOOK_ON_F14_VIEWER_PLAYER_SUPPRESSION_QUERY' "$core/src/server/game/Scripting/ScriptDefines/WorldObjectScript.h"
+          grep -Fq 'WORLDOBJECTHOOK_ON_F14_WHO_GUID_EXCLUSION_QUERY' "$core/src/server/game/Scripting/ScriptDefines/WorldObjectScript.h"
+          grep -Fq 'class IndividualProgressionF14Core6NegativeActorWhoAdapter final : public WorldObjectScript' "$ip/src/IndividualProgressionPlayer.cpp"
+          grep -Fq 'new IndividualProgressionF14Core6NegativeActorWhoAdapter();' "$ip/src/IndividualProgressionPlayer.cpp"
+          python3 -B -m unittest discover -s "$ip/tests" -p test_ip_f14_core6_negative_actor_who_adapter_source.py -v
+          python3 -B -m unittest discover -s "$ip/tests" -p test_ip_f14_actor_who_unified_publication_source.py -v
+          python3 -B -m unittest discover -s "$ip/tests" -p test_ip_f14_grim_player_who_observer_source.py -v
+          test -z "$(git -C "$ip" status --porcelain)"
+          echo 'PASS IP128 source checks old TRUE=ALLOW and new TRUE=HIDE default FALSE'
+          echo 'Only IP ABI diagnostic compiled ON; Core6 F14 NPC, actor and WHO caller macros OFF'
+
+      - name: Validate IP129 full GUID account race epoch publication and atomic revoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          ip=acore/modules/mod-individual-progression
+          test "$(git -C "$ip" rev-parse HEAD)" = 7ca897e2397216405f910f46e6a12e5b4e0b987b
+          grep -Fq 'TryReadF14VerifiedActorPublication(' "$ip/src/IndividualProgression.cpp"
+          grep -Fq '_f14VerifiedActorPublications.erase(guid);' "$ip/src/IndividualProgression.cpp"
+          grep -Fq 'F14VerifiedActorPublication{fullGuid, accountId, race, loginEpoch}' "$ip/src/IndividualProgression.cpp"
+          python3 -B -m unittest discover -s "$ip/tests" -p test_ip_f14_current_actor_publication_source.py -v
+          test -z "$(git -C "$ip" status --porcelain)"
+          echo 'PASS IP129 source publication and revocation, no positive player/WHO listener'
+
+      - name: IP137 stale-login identity revocation must run before IP disabled early return
+        shell: bash
+        run: |
+          set -euo pipefail
+          ip=acore/modules/mod-individual-progression
+          test "$(git -C "$ip" rev-parse HEAD)" = 7ca897e2397216405f910f46e6a12e5b4e0b987b
+          # Latest IP137 child of IP132: atomic config reload clears actor publication
+          # and the inherited source contract checks the stronger locked gating.
+          # The new IP137 lease MUST originate at OnPlayerLogin BEFORE the
+          # original Playerbots verified RandomBot predicate, and resist
+          # config reload generation changes with no positive listener.
+          # This test reproduces the exact former GCC/Clang native header failure
+          # against frozen IP134, then requires the real extracted IP137 header
+          # to compile. Full Core/IP/Services compilation follows below.
+          python3 -B -m unittest discover -s "$ip/tests" -p test_ip_f14_nested_lease_header_compile.py -v
+          # IP137 optional diagnostic verified login: compile and EXECUTE
+          # actual old/new source gate old-RED/new-GREEN under GCC and Clang.
+          python3 -B -m unittest discover -s "$ip/tests" -p test_ip_f14_optin_publication_login_predicate.py -v
+          # IP137 pure helper rejects invalid/unknown progression caps.
+          # Test must compile AND EXECUTE original IP136 OLD RED / new GREEN
+          # under GCC/Clang C++17/C++20 normal/NDEBUG; still no stage grant.
+          python3 -B -m unittest discover -s "$ip/tests" -p test_ip_f14_stage8_invalid_cap_native.py -v
+          python3 -B -m unittest discover -s "$ip/tests" -p test_ip_f14_actor_publication_reload_generation_source.py -v
+          python3 -B -m unittest discover -s "$ip/tests" -p test_ip_f14_group_floor_source.py -v
+          grep -Fq 'CaptureF14ActorPublicationLoginLease();' "$ip/src/IndividualProgressionPlayer.cpp"
+          # A coherent two-atomic lease must be sampled under the SAME lock
+          # held for both begin and finish of IP config reload.
+          grep -Fq 'std::shared_lock<std::shared_mutex> lock(_f14GroupCacheLock);' "$ip/src/IndividualProgression.cpp"
+          grep -Fq 'std::unique_lock<std::shared_mutex> lock(_f14GroupCacheLock);' "$ip/src/IndividualProgression.cpp"
+          grep -Fq 'sourceLease.generation ==' "$ip/src/IndividualProgression.cpp"
+          grep -Fq 'previousGeneration + 1, std::memory_order_release' "$ip/src/IndividualProgression.cpp"
+          # The old negative source contracts forbid the publication macro
+          # itself appearing in Player.cpp; retain that guarantee.
+          ! grep -Fq 'COSMIC_IP_F14_VERIFIED_ACTOR_PUBLICATION_EXPERIMENT' "$ip/src/IndividualProgressionPlayer.cpp"
+          python3 -B -m unittest discover -s "$ip/tests" -p test_ip_f14_atomic_publication_reload_source.py -v
+          grep -Fq 'void IndividualProgression::BeginF14ActorPublicationConfigReload()' "$ip/src/IndividualProgression.cpp"
+          grep -Fq '_f14ActorPublicationEnabled.load(std::memory_order_acquire)' "$ip/src/IndividualProgression.cpp"
+          python3 -B -m unittest discover -s "$ip/tests" -p test_ip_f14_disabled_login_revoke_source.py -v
+          python3 -B -m unittest discover -s "$ip/tests" -p test_ip_f14_current_actor_publication_source.py -v
+          python3 -B -m unittest discover -s "$ip/tests" -p test_ip_f14_core6_negative_actor_who_adapter_source.py -v
+          python3 -B -m unittest discover -s "$ip/tests" -p test_ip_f14_actor_who_unified_publication_source.py -v
+          python3 -B -m unittest discover -s "$ip/tests" -p test_ip_f14_grim_player_who_observer_source.py -v
+          grep -Fq 'if (!enabled || !fullGuid || !fullGuid.IsPlayer())' "$ip/src/IndividualProgression.cpp"
+          test -z "$(git -C "$ip" status --porcelain)"
+          echo 'PASS: exactly IP137 opt-in current actor revocation / no hide source contract'
+
+      - name: Install compile dependencies on disposable runner only
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            git cmake ninja-build g++ make pkg-config file \
+            libmysqlclient-dev libssl-dev libbz2-dev \
+            libreadline-dev libncurses-dev libboost-all-dev
+      - name: Generate pinned static module compile database (NO SERVER START)
+        run: |
+          cmake -S acore -B acore-build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DCMAKE_CXX_FLAGS="-DCOSMIC_IP_F14_REQUIRE_PLAYERBOTS -DCOSMIC_IP_F14_CORE6_ACTOR_WHO_NEGATIVE_ADAPTER_EXPERIMENT=1 -DCOSMIC_IP_F14_VERIFIED_ACTOR_PUBLICATION_EXPERIMENT=1 -DCOSMIC_F14_PLAYER_CLIENT_VIEWER_QUERY_EXPERIMENT=1 -DCOSMIC_F14_WHO_GUID_QUERY_EXPERIMENT=1 -DCOSMIC_F14_CREATURE_CLIENT_VIEWER_QUERY_EXPERIMENT=1" \
+            -DMODULES=static -DSCRIPTS=static \
+            -DAPPS_BUILD=world-only -DTOOLS_BUILD=none \
+            -DUSE_COREPCH=ON -DUSE_SCRIPTPCH=ON
+      - name: Assert all three actual module C++ compilation units are in graph
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          cc=json.loads(Path('acore-build/compile_commands.json').read_text())
+          for module,file in [
+            ('mod-individual-progression','IndividualProgressionExpansion.cpp'),
+            ('mod-character-services','CharacterServices.cpp'),
+            ('mod-naxxramas-core','Systems/MasterLootQuestGive.cpp')
+          ]:
+            hits=[entry for entry in cc
+                  if entry.get('file','').replace('\\','/').endswith('/'+module+'/src/'+file)]
+            assert len(hits)==1,(module,file,len(hits))
+            print('PASS: real compilation unit present',module,file)
+          PY
+      - name: Assert all three real Core F14 guarded query code paths are compiled in exact static Worldserver graph
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          cc=json.loads(Path('acore-build/compile_commands.json').read_text())
+          flags=[
+            '-DCOSMIC_F14_PLAYER_CLIENT_VIEWER_QUERY_EXPERIMENT=1',
+            '-DCOSMIC_F14_WHO_GUID_QUERY_EXPERIMENT=1',
+            '-DCOSMIC_F14_CREATURE_CLIENT_VIEWER_QUERY_EXPERIMENT=1',
+            '-DCOSMIC_IP_F14_CORE6_ACTOR_WHO_NEGATIVE_ADAPTER_EXPERIMENT=1',
+            '-DCOSMIC_IP_F14_VERIFIED_ACTOR_PUBLICATION_EXPERIMENT=1',
+          ]
+          targets={
+            'PlayerUpdates.cpp': 'src/server/game/Entities/Player/PlayerUpdates.cpp',
+            'MiscHandler.cpp': 'src/server/game/Handlers/MiscHandler.cpp',
+            'WorldObjectScript.cpp': 'src/server/game/Scripting/ScriptDefines/WorldObjectScript.cpp',
+            'IndividualProgressionPlayer.cpp': 'src/IndividualProgressionPlayer.cpp',
+            'IndividualProgression.cpp': 'src/IndividualProgression.cpp',
+          }
+          for label,suffix in targets.items():
+            found=[entry for entry in cc if entry.get('file','').replace('\\','/').endswith(suffix)]
+            assert found,(label,'missing actual CMake source compilation unit')
+            for entry in found:
+              cmd=entry.get('command','') or ' '.join(entry.get('arguments',[]))
+              missing=[flag for flag in flags if flag not in cmd]
+              assert not missing,(label,'missing compile macro',missing)
+            print('PASS guarded full Core+IP compile macro proof:',label)
+          PY
+          ip=acore/modules/mod-individual-progression
+          test "$(grep -Fxc '    bool OnF14ShouldSuppressPlayerForViewer(' "$ip/src/IndividualProgressionPlayer.cpp")" = 1
+          test "$(grep -Fxc '    bool OnF14ShouldExcludeWhoEntryForViewer(' "$ip/src/IndividualProgressionPlayer.cpp")" = 1
+          echo 'All three Core F14 query codepaths COMPILED, actor/WHO listener still always FALSE'
+          echo 'No game run; verified genuine RNDBOT policy, full human rights and client restore still absent'
+
+      - name: Compile AND link actual combined Worldserver (do not execute)
+        run: cmake --build acore-build --target worldserver --parallel 2
+      - name: Verify finished binary without launching it
+        run: |
+          test -s acore-build/src/server/apps/worldserver
+          test -x acore-build/src/server/apps/worldserver
+          echo 'PASS: Core6/PB10/IP137/Naxx292/Services Worldserver linked, all 3 F14 guarded query C++ arms compiled, IP actor/WHO hard FALSE, creature default FALSE; no concealment'
+          echo 'No owner host, accounts, DB, NPC, gold, config, enablement or live archive touched'
+      - name: Safety and confidence boundary
+        if: always()
+        run: |
+          echo 'ZERO runner-only Core/Playerbots source edits. New guarded PlayerUpdates.cpp call sites are in immutable owner Core6. Both former DB/locale shims are incompatible or unnecessary on owner Core and therefore removed.'
+          echo 'All 3 query compile macros are ON **ONLY on disposable CI runner**, no worldserver launched. IP actor/WHO hard FALSE and Core creature default FALSE. No positive F14 on owner host.'
+          echo 'Even a successful native link is NOT a completed gossip/payment/restart/gameplay test.'
+          echo 'Both expansion feature flags remain OFF; do not deploy without CosmicCuddle approval.'

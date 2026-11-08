@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Synthetic-only ignored and untracked .sql preservation warning contract.
+"""Synthetic-only ignored/untracked AND dirty tracked .sql warning contract.
 
 Never inspect the owner's actual host. Git paths stay private and no file
 contents, usernames, paths or credentials are printed by the tool.
@@ -58,8 +58,12 @@ class OfflineLocalSQLPresence(unittest.TestCase):
         default = inventory.inventory(self.core)
         self.assertNotIn("local_only_sql_presence", default["components"]["Core"])
         self.assertEqual(default["local_only_sql_files"], "not_checked")
+        self.assertEqual(default["dirty_tracked_sql_files"], "not_checked")
+        self.assertNotIn("dirty_tracked_sql_presence", default["components"]["Core"])
         checked = inventory.inventory(self.core, check_local_sql_presence=True)
         self.assertEqual(checked["components"]["Core"]["local_only_sql_presence"], "no")
+        self.assertEqual(checked["components"]["Core"]["dirty_tracked_sql_presence"], "no")
+        self.assertEqual(checked["components"]["Core"]["git_scoped_sql_changes"], "no")
 
     def test_untracked_sql_detected_without_exposing_name(self):
         secret = "OWNER_PRIVATE_UNTRACKED_SQL_12345.sql"
@@ -131,7 +135,9 @@ class OfflineLocalSQLPresence(unittest.TestCase):
                     parsed["components"]["Core"]["local_only_sql_presence"], "yes")
             else:
                 self.assertIn("local-only-sql=yes", reported)
-                self.assertIn("NOT BACKED UP", reported)
+                self.assertIn("tracked-sql-dirty=no", reported)
+                self.assertIn("git-sql-changes=yes", reported)
+                self.assertIn("NOT A BACKUP", reported)
 
     def test_failure_does_not_conjure_a_false_clean_state(self):
         original = inventory.subprocess.run
@@ -144,6 +150,111 @@ class OfflineLocalSQLPresence(unittest.TestCase):
             checked = inventory.inventory(self.core, check_local_sql_presence=True)
         self.assertEqual(
             checked["components"]["Core"]["local_only_sql_presence"], "unknown")
+
+
+    def _commit_tracked_sql(self, name="PRIVATE_TRACKED_CLEANUP_777.sql"):
+        target = self.core / name
+        target.write_text("OWNER_SECRET_SQL_ORIGINAL", encoding="utf-8")
+        git(self.core, "add", name)
+        git(self.core, "-c", "user.name=Fixture",
+            "-c", "user.email=fixture@example.invalid",
+            "commit", "-qm", "fixture tracked SQL")
+        return target
+
+    def test_modified_tracked_sql_reports_yes_worktree_and_staged(self):
+        target = self._commit_tracked_sql()
+        clean = inventory.inventory(self.core, check_local_sql_presence=True)
+        self.assertEqual(clean["components"]["Core"]["dirty_tracked_sql_presence"], "no")
+        self.assertEqual(clean["components"]["Core"]["git_scoped_sql_changes"], "no")
+        # The file is TRACKED; ordinary ignored/untracked cannot find it.
+        target.write_text("PRIVATE_STAGED_SQL_BODY_NEVER_PRINT", encoding="utf-8")
+        unstaged = inventory.inventory(self.core, check_local_sql_presence=True)
+        self.assertEqual(unstaged["components"]["Core"]["local_only_sql_presence"], "no")
+        self.assertEqual(unstaged["components"]["Core"]["dirty_tracked_sql_presence"], "yes")
+        self.assertEqual(unstaged["components"]["Core"]["git_scoped_sql_changes"], "yes")
+        git(self.core, "add", target.name)
+        staged = inventory.inventory(self.core, check_local_sql_presence=True)
+        self.assertEqual(staged["components"]["Core"]["dirty_tracked_sql_presence"], "yes")
+        self.assertNotIn(target.name, json.dumps(staged))
+        self.assertNotIn("PRIVATE_STAGED_SQL_BODY", json.dumps(staged))
+        git(self.core, "restore", "--staged", "--worktree", "--", target.name)
+        restored = inventory.inventory(self.core, check_local_sql_presence=True)
+        self.assertEqual(restored["components"]["Core"]["dirty_tracked_sql_presence"], "no")
+        self.assertEqual(restored["components"]["Core"]["git_scoped_sql_changes"], "no")
+
+    def test_deleted_tracked_sql_detected_unstaged_and_staged(self):
+        target = self._commit_tracked_sql()
+        target.unlink()
+        unstaged = inventory.inventory(self.core, check_local_sql_presence=True)
+        self.assertEqual(unstaged["components"]["Core"]["dirty_tracked_sql_presence"], "yes")
+        git(self.core, "add", "-u", "--", target.name)
+        staged = inventory.inventory(self.core, check_local_sql_presence=True)
+        self.assertEqual(staged["components"]["Core"]["dirty_tracked_sql_presence"], "yes")
+        self.assertEqual(staged["components"]["Core"]["git_scoped_sql_changes"], "yes")
+        self.assertNotIn(target.name, json.dumps(staged))
+
+    def test_rename_from_sql_to_txt_still_reports_old_tracked_sql(self):
+        target = self._commit_tracked_sql()
+        new = self.core / "OWNER_PRIVATE_NEW_NAME_777.txt"
+        git(self.core, "mv", target.name, new.name)
+        changed = inventory.inventory(self.core, check_local_sql_presence=True)
+        self.assertEqual(changed["components"]["Core"]["dirty_tracked_sql_presence"], "yes")
+        self.assertNotIn(target.name, json.dumps(changed))
+        self.assertNotIn(new.name, json.dumps(changed))
+
+    def test_dirty_tracked_git_failure_is_unknown_not_no(self):
+        original = inventory.subprocess.run
+        def fail_tracked(argv, *args, **kwargs):
+            if "diff" in argv and "--no-renames" in argv:
+                raise UnicodeError("PRIVATE_SQL_PATH_INVALID_UTF8")
+            return original(argv, *args, **kwargs)
+        with mock.patch.object(inventory.subprocess, "run",
+                               side_effect=fail_tracked):
+            checked = inventory.inventory(self.core, check_local_sql_presence=True)
+        self.assertEqual(checked["components"]["Core"]["local_only_sql_presence"], "no")
+        self.assertEqual(checked["components"]["Core"]["dirty_tracked_sql_presence"],
+                         "unknown")
+        self.assertEqual(checked["components"]["Core"]["git_scoped_sql_changes"],
+                         "unknown")
+
+    def test_cli_redacts_modified_tracked_sql(self):
+        target = self._commit_tracked_sql()
+        target.write_text("PRIVATE_TRACKED_SQL_SECRET_NEVER_PRINT", encoding="utf-8")
+        for as_json in (False, True):
+            out = io.StringIO()
+            args = [str(SCRIPT), "--core", str(self.core),
+                    "--check-local-sql-presence"]
+            if as_json:
+                args.append("--json")
+            with mock.patch.object(sys, "argv", args):
+                with contextlib.redirect_stdout(out):
+                    self.assertEqual(inventory.main(), 0)
+            response = out.getvalue()
+            self.assertNotIn(target.name, response)
+            self.assertNotIn("PRIVATE_TRACKED_SQL_SECRET", response)
+            self.assertNotIn(str(self.core), response)
+            if as_json:
+                parsed = json.loads(response)
+                state = parsed["components"]["Core"]
+                self.assertEqual(state["dirty_tracked_sql_presence"], "yes")
+                self.assertEqual(state["local_only_sql_presence"], "no")
+                self.assertEqual(state["git_scoped_sql_changes"], "yes")
+            else:
+                self.assertIn("tracked-sql-dirty=yes", response)
+                self.assertIn("git-sql-changes=yes", response)
+                self.assertIn("NOT A BACKUP", response)
+
+    def test_no_git_diff_run_when_option_default_off(self):
+        original = inventory.subprocess.run
+        def refuse_optional_diff(argv, *args, **kwargs):
+            if "diff" in argv and "--no-renames" in argv:
+                raise AssertionError("optional SQL Git diff must not run by default")
+            return original(argv, *args, **kwargs)
+        with mock.patch.object(inventory.subprocess, "run",
+                               side_effect=refuse_optional_diff):
+            report = inventory.inventory(self.core)
+        self.assertNotIn("dirty_tracked_sql_presence", report["components"]["Core"])
+        self.assertEqual(report["dirty_tracked_sql_files"], "not_checked")
 
 
 if __name__ == "__main__":

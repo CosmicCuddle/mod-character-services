@@ -297,8 +297,7 @@ jobs:
           grep -Fq 'CharacterDatabase.AsyncCommitTransaction(birthTrans)' "$pb/src/Bot/Factory/RandomPlayerbotFactory.cpp"
           grep -Fq 'MarkCommittedRowReadback(' "$pb/src/Bot/F14NewRandomBotBirthProbe.h"
           python3 -B -m unittest discover -s "$pb/tests" -p test_f14_birth_commit_readback_source.py -v
-          g++ -std=c++17 -O1 -pthread -Wall -Wextra -Werror -pedantic -I"$pb/src/Bot" \\
-            "$pb/tests/f14_birth_commit_readback_model.cpp" -o /tmp/pb9-commit-model
+          g++ -std=c++17 -O1 -pthread -Wall -Wextra -Werror -pedantic -I"$pb/src/Bot" "$pb/tests/f14_birth_commit_readback_model.cpp" -o /tmp/pb9-commit-model
           /tmp/pb9-commit-model
           test -z "$(git -C "$pb" status --porcelain)"
           echo 'PASS PB9 C++ header/source default-OFF audit; no DB, stage8, WHO, creature hide or player write tested'

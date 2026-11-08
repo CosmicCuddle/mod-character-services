@@ -46,7 +46,8 @@ def safe_name(name: str) -> str:
     return "[name-redacted]"
 
 
-def git_info(folder: Path, check_untracked_presence: bool = False) -> dict[str, Any]:
+def git_info(folder: Path, check_untracked_presence: bool = False,
+             check_local_sql_presence: bool = False) -> dict[str, Any]:
     """Metadata-only; does not print paths or file content/status filenames."""
     if folder.is_symlink():
         return {"checkout": "symlink-not-inspected", "sha": None,
@@ -113,16 +114,31 @@ def git_info(folder: Path, check_untracked_presence: bool = False) -> dict[str, 
         result["untracked_presence"] = (
             "unknown" if items is None else "yes" if items else "no"
         )
+    if check_local_sql_presence:
+        # Opt-in only; check ordinary untracked AND ignored paths.
+        # No file content reads. Never emit or persist actual filenames.
+        other = call("ls-files", "--others", "--exclude-standard", "-z")
+        ignored = call("ls-files", "--others", "--ignored",
+                       "--exclude-standard", "-z")
+        def contains_sql(paths: str) -> bool:
+            return any(name.lower().endswith(".sql")
+                       for name in paths.split("\0") if name)
+        result["local_only_sql_presence"] = (
+            "unknown" if other is None or ignored is None else
+            "yes" if contains_sql(other) or contains_sql(ignored) else "no"
+        )
     return result
 
 
 def inventory(core: Path, check_untracked_presence: bool = False,
-              inspect_other_module_revisions: bool = False) -> dict[str, Any]:
+              inspect_other_module_revisions: bool = False,
+              check_local_sql_presence: bool = False) -> dict[str, Any]:
     """Read-only source-tree census. Never inspect config or database content."""
     if core.is_symlink() or not core.is_dir():
         raise ValueError("Core must be an existing, non-symlink directory")
 
-    components: dict[str, Any] = {"Core": git_info(core, check_untracked_presence)}
+    components: dict[str, Any] = {"Core": git_info(core, check_untracked_presence,
+                                               check_local_sql_presence)}
     mods = core / "modules"
     folders: dict[str, Path] = {}
     if mods.is_dir() and not mods.is_symlink():
@@ -136,13 +152,17 @@ def inventory(core: Path, check_untracked_presence: bool = False,
                      None)
         if found is not None:
             claimed.add(found.name.casefold())
-        components[label] = git_info(found, check_untracked_presence) if found is not None else {
+        components[label] = git_info(found, check_untracked_presence,
+                                     check_local_sql_presence) if found is not None else {
             "checkout": "missing", "sha": None, "tracked_changes": "unknown"
         }
 
     if check_untracked_presence:
         for state in components.values():
             state.setdefault("untracked_presence", "unknown")
+    if check_local_sql_presence:
+        for state in components.values():
+            state.setdefault("local_only_sql_presence", "unknown")
 
     other_paths = [path for name, path in sorted(folders.items())
                    if name not in claimed]
@@ -157,7 +177,7 @@ def inventory(core: Path, check_untracked_presence: bool = False,
         for path in other_paths[:20]:
             other_revisions.append({
                 "name": safe_name(path.name),
-                **git_info(path, check_untracked_presence),
+                **git_info(path, check_untracked_presence, check_local_sql_presence),
             })
     for label, state in components.items():
         expected = PINNED_CI_TUPLE.get(label)
@@ -172,6 +192,8 @@ def inventory(core: Path, check_untracked_presence: bool = False,
         "additional_source_module_directories": additional,
         "untracked_files": ("checked_presence_only_in_independent_git_checkouts"
                             if check_untracked_presence else "not_checked"),
+        "local_only_sql_files": ("checked_presence_only_in_independent_git_checkouts"
+                                 if check_local_sql_presence else "not_checked"),
         "installed_and_loaded_modules": "not_verified",
         "running_core_binary": "not_verified",
         "effective_config_and_paid_F14_flags": "not_verified",
@@ -199,10 +221,13 @@ def main() -> int:
                         help="optional: yes/no only for untracked Git source files; never list names")
     parser.add_argument("--inspect-other-module-revisions", action="store_true",
                         help="opt-in Git metadata for up to 20 unknown module source folders")
+    parser.add_argument("--check-local-sql-presence", action="store_true",
+                        help="opt-in yes/no/unknown for ignored OR untracked .sql in independent Git roots")
     args = parser.parse_args()
     try:
         result = inventory(args.core, args.check_untracked_presence,
-                           args.inspect_other_module_revisions)
+                           args.inspect_other_module_revisions,
+                           args.check_local_sql_presence)
     except (ValueError, OSError):
         parser.error("The provided Core source folder could not be inspected")
         return 2
@@ -217,6 +242,8 @@ def main() -> int:
                   f"tracked-modified={state['tracked_changes']} "
                   + (f"untracked-present={state['untracked_presence']} "
                      if args.check_untracked_presence else "")
+                  + (f"local-only-sql={state['local_only_sql_presence']} "
+                     if args.check_local_sql_presence else "")
                   + f"matches-older-CI={state['matches_historical_green_ci_sha']}")
         extras = result["additional_source_module_directories"]
         print("Other module source directories: "
@@ -228,13 +255,19 @@ def main() -> int:
                       f"sha={state.get('sha') or 'UNKNOWN'} "
                       f"tracked-modified={state['tracked_changes']}"
                       + (f" untracked-present={state.get('untracked_presence', 'unknown')}"
-                         if args.check_untracked_presence else ""))
+                         if args.check_untracked_presence else "")
+                      + (f" local-only-sql={state.get('local_only_sql_presence', 'unknown')}"
+                         if args.check_local_sql_presence else ""))
             if result["other_module_source_revisions_omitted"]:
                 print("Additional SOURCE directories left uninspected: "
                       + str(result["other_module_source_revisions_omitted"]))
         print(("CHECKED PRESENCE ONLY: untracked source paths never printed. "
                if args.check_untracked_presence else
                "UNVERIFIED: untracked files. ")
+              + ("LOCAL-ONLY SQL PRESENCE IN INDEPENDENT GIT ROOTS CHECKED; "
+                 "NOT BACKED UP OR CHECKED OUTSIDE TREE. "
+                 if args.check_local_sql_presence else
+                 "UNVERIFIED: ignored/untracked local SQL. ")
               + "UNVERIFIED: actual loaded modules; active "
                 "binary; config flags; DB/SQL; DBC/client; backups; deployment.")
         print("No config values or database rows printed; no server files or services changed.")

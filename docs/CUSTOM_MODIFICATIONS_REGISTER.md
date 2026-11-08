@@ -208,3 +208,11 @@ corpse sparkle behaviour. A1/A2, legacy paid rows, B1/B2 and GM bypass
 remain unapproved/blocking; no DB migration has occurred.
 **Rollback:** close/discard CI-only draft, preserving original successful
 #12 and independent #13 source pins. No host/server deployment approval.
+
+### S5 offline ignored/untracked SQL presence warning — review-only (8 November 2026)
+
+- **Purpose / owner:** Cosmetic-risk-free offline preflight support for CosmicCuddle's custom SQL cleanups/migrations; NOT a backup, restore or deployment utility. Parent isolated source-inventory DRAFT #24 at `453f179b23b0020349679eca532da994ffd6b27f`.
+- **Source and tests:** opt-in `--check-local-sql-presence` in `tools/offline_source_inventory.py`; new synthetic Git tests `tests/test_offline_local_sql_presence.py`; isolated workflow `.github/workflows/character-services-offline-local-sql-guard-20261108.yml` and appended source inventory documentation. Existing options and default offline source output preserved aside from explicit `not_checked` status/warning.
+- **Behaviour:** in independently versioned Git checkout of an **approved disposable offline source copy only**, ask Git for ignored AND ordinary untracked file paths, detect case-insensitive `.sql`, emit per-repository `yes/no/unknown` only, never raw names/content/credentials. No file copy, archive, cleanup, schema or database interaction. The existence of other source checkouts does not prove installed active modules.
+- **Dependencies / risks:** Git required; error/encoding/timeout/non-independent checkout ⇒ UNKNOWN; tracked-but-dirty SQL, SQL outside inspected repos, local archives and data migration order are **not covered**. Do not interpret NO as clean, BACKED UP or safe to update. A later separately owner-approved full tracked/untracked/ignored SQL inventory with secure checksums, recoverable backup and offline restore is mandatory. Feature default OFF; no change to F14/paid, quests, Naxx, Playerbots, Core, client/DBC, configured mods or production. Source fixtures only, no real machine access.
+- **Rollback / review state:** unmerged source-tool development child `tools/cs01-offline-local-sql-presence-20261108`; discard branch/PR to restore original #24. Hosted synthetic CI and owner acceptance still independently required; no live status claimed.

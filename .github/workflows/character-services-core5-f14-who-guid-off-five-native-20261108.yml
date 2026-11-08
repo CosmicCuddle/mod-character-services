@@ -3,7 +3,7 @@ name: Owner Core5 F14 client query OFF + PB7+IP120+Naxx292+Services S4 (NO LAUNC
 on:
   pull_request:
     branches:
-      - ci/cs01-core2-pb7-ip120-off-native-compat-20261107
+      - ci/cs01-core4-f14-viewer-off-pb7-ip120-naxx292-services16-20261108
     paths:
       - '.github/workflows/character-services-core5-f14-who-guid-off-five-native-20261108.yml'
   push:
@@ -270,7 +270,7 @@ jobs:
           done
           echo 'PASS: new real PlayerUpdates.cpp F14 query call sites compiled OFF; no positive listener, no runtime F14 concealment'
 
-      - name: Core5 WHO GUID source gate: preserve real-human and Altbot fail-visible defaults (OFF)
+      - name: Core5 WHO GUID source gate - preserve human and Altbot fail-visible defaults (OFF)
         shell: bash
         run: |
           set -euo pipefail

@@ -73,7 +73,10 @@ def git_info(folder: Path, check_untracked_presence: bool = False) -> dict[str, 
                 check=False,
             )
             return p.stdout.strip() if p.returncode == 0 else None
-        except (OSError, subprocess.TimeoutExpired):
+        except (OSError, subprocess.TimeoutExpired, UnicodeError):
+            # Git may report names using bytes that are invalid under the
+            # runner's locale. Never crash, print a private path/traceback or
+            # turn an undecodable untracked-name list into a false "no".
             return None
 
     toplevel = call("rev-parse", "--show-toplevel")

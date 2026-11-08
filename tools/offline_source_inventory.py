@@ -116,7 +116,9 @@ def git_info(folder: Path, check_untracked_presence: bool = False,
         )
     if check_local_sql_presence:
         # Opt-in only; check ordinary untracked AND ignored paths.
-        # No file content reads. Never emit or persist actual filenames.
+        # This Python tool never opens SQL files or reports path names.
+        # Git may hash tracked worktree contents internally when checking
+        # for changes; never present this inventory as a content backup.
         other = call("ls-files", "--others", "--exclude-standard", "-z")
         ignored = call("ls-files", "--others", "--ignored",
                        "--exclude-standard", "-z")

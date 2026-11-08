@@ -72,21 +72,26 @@ class OfflineLocalSQLPresence(unittest.TestCase):
         self.assertNotIn(self.temp.name, report)
 
     def test_ignored_sql_detected_even_when_ordinary_untracked_says_no(self):
-        (self.core / ".gitignore").write_text("*.sql\n", encoding="utf-8")
-        git(self.core, "add", ".gitignore")
-        git(self.core, "-c", "user.name=Fixture",
-            "-c", "user.email=fixture@example.invalid",
-            "commit", "-qm", "ignored SQL pattern")
-        secret = self.core / "IGNORED_OWNER_CLEANUP_12345.SQL"
-        secret.write_text("SECRET_SQL_NEVER_EXPOSE", encoding="utf-8")
-        # Linux Git ignore patterns are case-sensitive. Use exact uppercase too.
+        # Git --directory may report even an empty modules/ folder as an
+        # ordinary untracked directory. Compare against the BASELINE rather
+        # than falsely expecting an entirely clean repository.
         (self.core / ".gitignore").write_text("*.sql\n*.SQL\n", encoding="utf-8")
         git(self.core, "add", ".gitignore")
         git(self.core, "-c", "user.name=Fixture",
             "-c", "user.email=fixture@example.invalid",
-            "commit", "-qm", "ignore both spellings")
+            "commit", "-qm", "ignore SQL patterns")
+        baseline = inventory.inventory(self.core, check_untracked_presence=True)
+        secret = self.core / "IGNORED_OWNER_CLEANUP_12345.SQL"
+        secret.write_text("SECRET_SQL_NEVER_EXPOSE", encoding="utf-8")
         standard = inventory.inventory(self.core, check_untracked_presence=True)
-        self.assertEqual(standard["components"]["Core"]["untracked_presence"], "no")
+        self.assertEqual(
+            standard["components"]["Core"]["untracked_presence"],
+            baseline["components"]["Core"]["untracked_presence"])
+        # Existing generic untracked check filters ignored SQL regardless of
+        # whether it reports unrelated directories as untracked.
+        generic_names = git(self.core, "ls-files", "--others",
+                            "--exclude-standard", "--directory", "-z")
+        self.assertNotIn(secret.name, generic_names)
         checked = inventory.inventory(self.core, check_local_sql_presence=True)
         self.assertEqual(checked["components"]["Core"]["local_only_sql_presence"], "yes")
         self.assertNotIn("IGNORED_OWNER", json.dumps(checked))

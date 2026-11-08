@@ -143,6 +143,88 @@ class SourceOnlyInventory(unittest.TestCase):
         self.assertEqual(result["components"]["Core"]["untracked_presence"],
                          "unknown")
 
+    def test_other_module_checkout_revisions_are_opt_in_only(self):
+        extra = self.core / "modules" / "mod-owner-extra"
+        commit = setup_repo(extra)
+        default = inventory.inventory(self.core)
+        self.assertNotIn("other_module_source_revisions", default)
+        self.assertNotIn("other_module_source_revisions_omitted", default)
+        self.assertIn("mod-owner-extra",
+                      default["additional_source_module_directories"])
+
+        checked = inventory.inventory(
+            self.core, inspect_other_module_revisions=True)
+        states = checked["other_module_source_revisions"]
+        self.assertEqual(checked["other_module_source_revisions_omitted"], 0)
+        by_name = {entry["name"]: entry for entry in states}
+        self.assertEqual(by_name["mod-owner-extra"]["sha"], commit)
+        self.assertEqual(by_name["mod-owner-extra"]["tracked_changes"], "no")
+        self.assertEqual(by_name["custom-client-safe"]["checkout"],
+                         "no-independent-git")
+        self.assertNotIn("private-secret-token", json.dumps(checked))
+        self.assertIn("[name-redacted]", by_name)
+        self.assertNotIn("mod-playerbots", by_name)
+
+        (extra / "README.md").write_text("local custom edit\\n",
+                                         encoding="utf-8")
+        modified = inventory.inventory(
+            self.core, inspect_other_module_revisions=True)
+        extra_state = next(
+            x for x in modified["other_module_source_revisions"]
+            if x["name"] == "mod-owner-extra")
+        self.assertEqual(extra_state["tracked_changes"], "yes")
+
+    def test_other_module_git_revision_optin_bounded_and_optional_untracked(self):
+        extra = self.core / "modules" / "mod-owner-extra"
+        setup_repo(extra)
+        (extra / "SENSITIVE_UNTRACKED_NAME").write_text(
+            "private values never printed", encoding="utf-8")
+        for n in range(24):
+            (self.core / "modules" / ("custom-extra-%02d" % n)).mkdir()
+
+        checked = inventory.inventory(
+            self.core, check_untracked_presence=True,
+            inspect_other_module_revisions=True)
+        states = checked["other_module_source_revisions"]
+        self.assertEqual(len(states), 20)
+        self.assertEqual(
+            checked["other_module_source_revisions_omitted"], 7)
+        self.assertEqual(checked["untracked_files"],
+                         "checked_presence_only_in_independent_git_checkouts")
+        # Sorted extras over limit are honestly marked omitted, not clean.
+        self.assertNotIn("SENSITIVE_UNTRACKED_NAME", json.dumps(checked))
+        for state in states:
+            self.assertIn(state["tracked_changes"], ("yes", "no", "unknown"))
+        self.assertNotIn("mod-playerbots",
+                         [state["name"] for state in states])
+
+    def test_other_module_checkout_cli_json_and_human_redact(self):
+        extra = self.core / "modules" / "mod-owner-extra"
+        commit = setup_repo(extra)
+        for as_json in (False, True):
+            output = io.StringIO()
+            args = [str(SCRIPT), "--core", str(self.core),
+                    "--inspect-other-module-revisions"]
+            if as_json:
+                args.append("--json")
+            with mock.patch.object(sys, "argv", args):
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(inventory.main(), 0)
+            printed = output.getvalue()
+            self.assertNotIn(str(self.home), printed)
+            self.assertNotIn("private-secret-token", printed)
+            self.assertNotIn(self.secret, printed)
+            if as_json:
+                parsed = json.loads(printed)
+                self.assertTrue(any(
+                    item["sha"] == commit for item in
+                    parsed["other_module_source_revisions"]))
+                self.assertEqual(parsed["production_change_approved"], False)
+            else:
+                self.assertIn("Other SOURCE checkout revisions", printed)
+                self.assertIn(commit, printed)
+                self.assertIn("NOT loaded modules", printed)
+
     def test_undecodable_git_output_is_unknown_not_absent(self):
         # Git filenames are raw bytes. A bad locale decode must not crash
         # or incorrectly state there are no untracked source files.

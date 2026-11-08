@@ -1,0 +1,76 @@
+name: S5 offline-only tracked dirty plus ignored SQL warnings (privacy, no host)
+
+on:
+  push:
+    branches:
+      - tools/cs01-offline-dirty-tracked-sql-presence-20261108
+  pull_request:
+    branches:
+      - tools/cs01-offline-local-sql-presence-20261108
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-sql-source-privacy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout immutable source history (no credentials)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Strict five-path scope preserving original Services39 and every runtime file
+        shell: bash
+        run: |
+          set -euo pipefail
+          base=5322ba69939400005f58b61db327e4dd515a3dec
+          git merge-base --is-ancestor "$base" HEAD
+          git diff --check "$base" HEAD
+          git diff --name-only "$base" HEAD | sort >/tmp/actual
+          printf '%s\n' \
+            'tools/offline_source_inventory.py' \
+            'tests/test_offline_local_sql_presence.py' \
+            'docs/OFFLINE_SOURCE_INVENTORY_READONLY_20261107.md' \
+            'docs/CUSTOM_MODIFICATIONS_REGISTER.md' \
+            '.github/workflows/character-services-offline-dirty-tracked-sql-guard-20261108.yml' \
+            | sort >/tmp/expected
+          diff -u /tmp/expected /tmp/actual
+          test -z "$(git diff --name-only "$base" HEAD -- src conf data sql)"
+          echo 'PASS source-only SQL warning tool, no Services runtime/conf/SQL mutation'
+      - name: Preserve original offline inventory synthetic tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B -m unittest discover -s tests -p test_offline_source_inventory.py -v
+      - name: Original ignored/untracked plus tracked-modified SQL synthetic tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B -m unittest discover -s tests -p test_offline_local_sql_presence.py -v
+      - name: Check opt-in only, exact privacy safeguards and warning fields
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("tools/offline_source_inventory.py").read_text(encoding="utf-8")
+          assert 'if check_local_sql_presence:' in p
+          assert 'call("ls-files", "--others", "--exclude-standard", "-z")' in p
+          assert 'call("ls-files", "--others", "--ignored",' in p
+          assert 'tracked = call("diff", "--no-ext-diff", "--no-textconv",' in p
+          assert '"--no-renames", "--name-only", "-z", "HEAD", "--")' in p
+          assert 'result["dirty_tracked_sql_presence"]' in p
+          assert 'result["git_scoped_sql_changes"]' in p
+          assert 'check_local_sql_presence: bool = False' in p
+          assert 'parser.add_argument("--check-local-sql-presence"' in p
+          print('PASS local Git path-only scan, no filenames or SQL text displayed')
+          PY
+      - name: Evidence boundary
+        if: always()
+        run: |
+          echo 'Ephemeral synthetic Git source trees ONLY; the owner PC and live host were not accessed.'
+          echo 'YES/NO/UNKNOWN warnings are NOT clean tracked SQL manifests, backups or restorable DB proof.'
+          echo 'No source runtime, F14, paid, SQL, database, server binary, config, DBC/client or deployment.'

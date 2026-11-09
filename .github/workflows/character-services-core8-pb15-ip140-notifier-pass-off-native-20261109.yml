@@ -27,6 +27,7 @@ jobs:
           repository: CosmicCuddle/azerothcore-wotlk
           ref: 2e2a21ae2224a9738cd92abf00bab957dbfb7604
           path: acore
+          fetch-depth: 50  # Core8 source tests use exact ancestor Core7 git show.
           persist-credentials: false
       - name: Checkout owner PB15 pending-login child (OFF) plus PB14/PB13/PB12/PB11 history
         uses: actions/checkout@v4

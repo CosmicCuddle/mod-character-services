@@ -386,7 +386,7 @@ jobs:
               done
             done
           done
-          echo 'PASS: PB11/PB12/PB13 original source gates and PB14 read-only quota OFF, no deletion' 
+          echo 'PASS: PB11/PB12/PB13 original source gates and PB14 read-only quota OFF, no deletion'
 
       - name: Verify native owner Core + Playerbots DB and locale APIs match (NO CI PATCHES)
         shell: bash

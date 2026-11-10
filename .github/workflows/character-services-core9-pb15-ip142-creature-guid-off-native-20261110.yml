@@ -5,12 +5,12 @@ on:
     branches:
       - ci/cs01-core9-pb15-ip140-creature-guid-native-off-20261109
     paths:
-      - '.github/workflows/character-services-core9-pb15-ip142-creature-guid-off-native-20261109.yml'
+      - '.github/workflows/character-services-core9-pb15-ip142-creature-guid-off-native-20261110.yml'
   push:
     branches:
       - ci/cs01-core9-pb15-ip142-native-off-20261110
     paths:
-      - '.github/workflows/character-services-core9-pb15-ip142-creature-guid-off-native-20261109.yml'
+      - '.github/workflows/character-services-core9-pb15-ip142-creature-guid-off-native-20261110.yml'
 
 permissions:
   contents: read
@@ -69,7 +69,7 @@ jobs:
           git -C "$cs" diff --check "$parent" HEAD
           git -C "$cs" diff --name-only "$parent" HEAD > /tmp/owner-ip120-compat-files
           test "$(wc -l < /tmp/owner-ip120-compat-files)" = 1
-          grep -Fxq '.github/workflows/character-services-core9-pb15-ip142-creature-guid-off-native-20261109.yml' /tmp/owner-ip120-compat-files
+          grep -Fxq '.github/workflows/character-services-core9-pb15-ip142-creature-guid-off-native-20261110.yml' /tmp/owner-ip120-compat-files
           test -z "$(git -C "$cs" diff --name-only "$parent" HEAD -- src conf data sql scripts)"
           echo 'PASS: exactly one CI workflow, no runtime/SQL/config/code changes; Core6 is pinned in external source checkout only'
       - name: Assert all exact pins, owner snapshots, disabled defaults and IP API

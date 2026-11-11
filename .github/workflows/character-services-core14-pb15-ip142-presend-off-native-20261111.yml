@@ -1,4 +1,4 @@
-name: Owner Core14 real positive-query pre-send seam, PB15 IP142, F14 OFF
+name: Core14 F14 hook compilation ON, positive runtime policy OFF, PB15 IP142
 
 on:
   pull_request:
@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   pinned-paid-vendor-worldserver-link:
-    name: Core14 real source pre-send call and 5-owner Worldserver link, OFF
+    name: Core14 hook compile ON, F14 runtime OFF, five-owner Worldserver link
     runs-on: ubuntu-24.04
     timeout-minutes: 170
     steps:
@@ -591,21 +591,26 @@ jobs:
               'COSMIC_F14_WHO_GUID_QUERY_EXPERIMENT',
           }
           groups = {
-              'core': '/src/server/game/',
-              'playerbots': '/modules/mod-playerbots/',
-              'ip': '/modules/mod-individual-progression/',
-              'naxx': '/modules/mod-naxxramas-core/',
-              'services': '/modules/mod-character-services/',
+              'playerbots': '/acore/modules/mod-playerbots/',
+              'ip': '/acore/modules/mod-individual-progression/',
+              'naxx': '/acore/modules/mod-naxxramas-core/',
+              'services': '/acore/modules/mod-character-services/',
           }
-          seen = {name: 0 for name in groups}
+          seen = {name: 0 for name in ('core', *groups)}
+          checked = 0
           for entry in cc:
               source = entry.get('file', '').replace('\\', '/')
               if not source.endswith('.cpp'):
                   continue
-              owners = [name for name, path in groups.items() if path in source]
-              if not owners:
-                  continue
-              assert len(owners) == 1, (source, owners)
+              normalized = '/' + source.lstrip('/')
+              if '/acore/src/' in normalized:
+                  owner = 'core'
+              elif '/acore/modules/' in normalized:
+                  matches = [name for name, path in groups.items() if path in normalized]
+                  assert len(matches) <= 1, (source, matches)
+                  owner = matches[0] if matches else 'other-module'
+              else:
+                  continue  # Generated build-tree sources are not acore/source TUs.
               argv = entry.get('arguments') or shlex.split(entry['command'])
               # A single global definition for EACH ABI-affecting hook in
               # EVERY actual translation unit. This rejects mixed macro/ODR
@@ -614,10 +619,14 @@ jobs:
                   defs = [a for a in argv if a.startswith('-D' + macro + '=') or a == '-D' + macro]
                   undefs = [a for a in argv if a == '-U' + macro]
                   assert defs == ['-D' + macro + '=1'] and not undefs, (
-                      owners[0], source, macro, defs, undefs)
-              seen[owners[0]] += 1
+                      owner, source, macro, defs, undefs)
+              checked += 1
+              if owner in seen:
+                  seen[owner] += 1
           assert all(count > 0 for count in seen.values()), ('missing owner units', seen)
-          print('PASS: Core + PB + IP + Naxx + Services compile commands share exact F14 virtual-hook macros')
+          assert checked >= sum(seen.values()), (checked, seen)
+          print('PASS: ALL acore/src + acore/modules C++ compile commands share exact F14 virtual-hook macros')
+          print('All source translation units checked:', checked)
           print('Verified translation-unit counts:', seen)
           print('Only this disposable CI build is certified; future host build flags remain UNKNOWN')
           PY

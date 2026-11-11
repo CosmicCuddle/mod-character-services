@@ -573,6 +573,55 @@ jobs:
             assert len(hits)==1,(module,file,len(hits))
             print('PASS: real compilation unit present',module,file)
           PY
+      - name: Verify F14 hook ABI macros agree across Core and all four owner modules (NO RUNTIME)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import shlex
+          from pathlib import Path
+          cc = json.loads(Path('acore-build/compile_commands.json').read_text())
+          required = {
+              'COSMIC_F14_NOTIFIER_PASS_LIFECYCLE_EXPERIMENT',
+              'COSMIC_F14_CREATURE_BATCH_GUID_EVIDENCE_EXPERIMENT',
+              'COSMIC_F14_PRE_SEND_CREATURE_OUT_EVIDENCE_EXPERIMENT',
+              'COSMIC_F14_CREATURE_CLIENT_VIEWER_QUERY_EXPERIMENT',
+              'COSMIC_F14_PLAYER_CLIENT_VIEWER_QUERY_EXPERIMENT',
+              'COSMIC_F14_WHO_GUID_QUERY_EXPERIMENT',
+          }
+          groups = {
+              'core': '/src/server/game/',
+              'playerbots': '/modules/mod-playerbots/',
+              'ip': '/modules/mod-individual-progression/',
+              'naxx': '/modules/mod-naxxramas-core/',
+              'services': '/modules/mod-character-services/',
+          }
+          seen = {name: 0 for name in groups}
+          for entry in cc:
+              source = entry.get('file', '').replace('\\', '/')
+              if not source.endswith('.cpp'):
+                  continue
+              owners = [name for name, path in groups.items() if path in source]
+              if not owners:
+                  continue
+              assert len(owners) == 1, (source, owners)
+              argv = entry.get('arguments') or shlex.split(entry['command'])
+              # A single global definition for EACH ABI-affecting hook in
+              # EVERY actual translation unit. This rejects mixed macro/ODR
+              # definitions that a five-owner link alone might not catch.
+              for macro in required:
+                  defs = [a for a in argv if a.startswith('-D' + macro + '=') or a == '-D' + macro]
+                  undefs = [a for a in argv if a == '-U' + macro]
+                  assert defs == ['-D' + macro + '=1'] and not undefs, (
+                      owners[0], source, macro, defs, undefs)
+              seen[owners[0]] += 1
+          assert all(count > 0 for count in seen.values()), ('missing owner units', seen)
+          print('PASS: Core + PB + IP + Naxx + Services compile commands share exact F14 virtual-hook macros')
+          print('Verified translation-unit counts:', seen)
+          print('Only this disposable CI build is certified; future host build flags remain UNKNOWN')
+          PY
+
       - name: Assert all three real Core F14 guarded query code paths are compiled in exact static Worldserver graph
         shell: bash
         run: |

@@ -25,7 +25,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: CosmicCuddle/azerothcore-wotlk
-          ref: 277792e0bc85fcbdcb84ff86fa88646c1f3edd3c
+          ref: aa2bd7ac50a9b1ed873127799d895caf674c929b
           path: acore
           fetch-depth: 50  # Core8 source tests use exact ancestor Core7 git show.
           persist-credentials: false
@@ -76,7 +76,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git -C acore rev-parse HEAD)" = 277792e0bc85fcbdcb84ff86fa88646c1f3edd3c
+          test "$(git -C acore rev-parse HEAD)" = aa2bd7ac50a9b1ed873127799d895caf674c929b
           test "$(git -C acore/modules/mod-playerbots rev-parse HEAD)" = 4b355ea3a8fd00a0b116681bf9db4c7a3eb0e051
           test "$(git -C acore/modules/mod-individual-progression rev-parse HEAD)" = f259c8593f7a8ac5521bee343c40d5a2a35fd76b
           test "$(git -C acore/modules/mod-naxxramas-core rev-parse HEAD)" = 51d0611476358286505aed3ca806ea250f644f66
@@ -228,7 +228,7 @@ jobs:
           ip=$core/modules/mod-individual-progression
           target=src/server/game/Entities/Player/PlayerSettings.cpp
           player=src/server/game/Entities/Player/Player.h
-          test "$(git -C "$core" rev-parse HEAD)" = 277792e0bc85fcbdcb84ff86fa88646c1f3edd3c
+          test "$(git -C "$core" rev-parse HEAD)" = aa2bd7ac50a9b1ed873127799d895caf674c929b
           test "$(git -C "$core" rev-parse "HEAD:$target")" = 2bcac6abe4a8960a62241a582d86ba28e46b2719
           test "$(git -C "$core" rev-parse "HEAD:$player")" = 81920131574af4a00e6d0f213c428b25750d9aa0
           test -z "$(git -C "$core" status --porcelain)"
@@ -296,7 +296,7 @@ jobs:
         run: |
           set -euo pipefail
           core=acore
-          test "$(git -C "$core" rev-parse HEAD)" = 277792e0bc85fcbdcb84ff86fa88646c1f3edd3c
+          test "$(git -C "$core" rev-parse HEAD)" = aa2bd7ac50a9b1ed873127799d895caf674c929b
           grep -Fq 'bool ShouldF14SuppressCreatureForViewer(' "$core/src/server/game/Scripting/ScriptMgr.h"
           grep -Fq 'OnF14ShouldSuppressCreatureForViewer(' "$core/src/server/game/Scripting/ScriptDefines/WorldObjectScript.h"
           grep -Fq 'CALL_ENABLED_BOOLEAN_HOOKS_WITH_DEFAULT_FALSE(' "$core/src/server/game/Scripting/ScriptDefines/WorldObjectScript.cpp"
@@ -318,7 +318,7 @@ jobs:
         run: |
           set -euo pipefail
           core=acore
-          test "$(git -C "$core" rev-parse HEAD)" = 277792e0bc85fcbdcb84ff86fa88646c1f3edd3c
+          test "$(git -C "$core" rev-parse HEAD)" = aa2bd7ac50a9b1ed873127799d895caf674c929b
           grep -Fq 'COSMIC_F14_WHO_GUID_QUERY_EXPERIMENT >= 1' "$core/src/server/game/Handlers/MiscHandler.cpp"
           grep -Fq 'ShouldF14ExcludeWhoEntryForViewer(_player, target.GetGuid(), race)' "$core/src/server/game/Handlers/MiscHandler.cpp"
           grep -Fq 'WORLDOBJECTHOOK_ON_F14_WHO_GUID_EXCLUSION_QUERY' "$core/src/server/game/Scripting/ScriptDefines/WorldObjectScript.h"
@@ -333,7 +333,7 @@ jobs:
         run: |
           set -euo pipefail
           core=acore
-          test "$(git -C "$core" rev-parse HEAD)" = 277792e0bc85fcbdcb84ff86fa88646c1f3edd3c
+          test "$(git -C "$core" rev-parse HEAD)" = aa2bd7ac50a9b1ed873127799d895caf674c929b
           grep -Fq 'COSMIC_F14_PLAYER_CLIENT_VIEWER_QUERY_EXPERIMENT >= 1' "$core/src/server/game/Entities/Player/PlayerUpdates.cpp"
           grep -Fq 'ShouldF14SuppressPlayerForViewer(viewer, actor)' "$core/src/server/game/Entities/Player/PlayerUpdates.cpp"
           grep -Fq 'WORLDOBJECTHOOK_ON_F14_VIEWER_PLAYER_SUPPRESSION_QUERY' "$core/src/server/game/Scripting/ScriptDefines/WorldObjectScript.h"
@@ -437,7 +437,7 @@ jobs:
           ip=acore/modules/mod-individual-progression
           core=acore
           test "$(git -C "$ip" rev-parse HEAD)" = f259c8593f7a8ac5521bee343c40d5a2a35fd76b
-          test "$(git -C "$core" rev-parse HEAD)" = 277792e0bc85fcbdcb84ff86fa88646c1f3edd3c
+          test "$(git -C "$core" rev-parse HEAD)" = aa2bd7ac50a9b1ed873127799d895caf674c929b
           grep -Fq 'WORLDOBJECTHOOK_ON_F14_VIEWER_PLAYER_SUPPRESSION_QUERY' "$core/src/server/game/Scripting/ScriptDefines/WorldObjectScript.h"
           grep -Fq 'WORLDOBJECTHOOK_ON_F14_WHO_GUID_EXCLUSION_QUERY' "$core/src/server/game/Scripting/ScriptDefines/WorldObjectScript.h"
           grep -Fq 'class IndividualProgressionF14Core6NegativeActorWhoAdapter final : public WorldObjectScript' "$ip/src/IndividualProgressionPlayer.cpp"

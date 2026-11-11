@@ -27,7 +27,7 @@ jobs:
           repository: CosmicCuddle/azerothcore-wotlk
           ref: 45c745227d932d9d95f9dc2e524048bc2855a68f
           path: acore
-          fetch-depth: 50  # Core8 source tests use exact ancestor Core7 git show.
+          fetch-depth: 96  # Core7 test ancestor is 55 commits behind Core14; 50 truncated it.
           persist-credentials: false
       - name: Checkout owner PB15 pending-login child (OFF) plus PB14/PB13/PB12/PB11 history
         uses: actions/checkout@v4
@@ -77,6 +77,10 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git -C acore rev-parse HEAD)" = 45c745227d932d9d95f9dc2e524048bc2855a68f
+          # Core7 is a 55-commit ancestor of this Core14 pin. The inherited
+          # Core8 source tests use git show on that exact historical commit.
+          git -C acore cat-file -e '891e3a622901a525e325b597e52edf2271a98a41^{commit}'
+          git -C acore merge-base --is-ancestor 891e3a622901a525e325b597e52edf2271a98a41 HEAD
           test "$(git -C acore/modules/mod-playerbots rev-parse HEAD)" = 4b355ea3a8fd00a0b116681bf9db4c7a3eb0e051
           test "$(git -C acore/modules/mod-individual-progression rev-parse HEAD)" = f259c8593f7a8ac5521bee343c40d5a2a35fd76b
           test "$(git -C acore/modules/mod-naxxramas-core rev-parse HEAD)" = 51d0611476358286505aed3ca806ea250f644f66

@@ -3,12 +3,12 @@ name: Owner Core14 real positive-query pre-send seam, PB15 IP142, F14 OFF
 on:
   pull_request:
     branches:
-      - ci/cs01-core9-pb15-ip140-creature-guid-native-off-20261109
+      - ci/cs01-core9-pb15-ip142-native-off-20261110
     paths:
       - '.github/workflows/character-services-core14-pb15-ip142-presend-off-native-20261111.yml'
   push:
     branches:
-      - ci/cs01-core9-pb15-ip142-native-off-20261110
+      - ci/cs01-core14-pb15-ip142-presend-native-off-20261111
     paths:
       - '.github/workflows/character-services-core14-pb15-ip142-presend-off-native-20261111.yml'
 

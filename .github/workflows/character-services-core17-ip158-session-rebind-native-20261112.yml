@@ -110,7 +110,7 @@ jobs:
           set -euo pipefail
           # Preserve the Core16 exact-insertion test on its own immutable tree;
           # Core17 intentionally adds another guarded ScriptMgr declaration.
-          git -C acore worktree add --detach /tmp/core16 "$core16"
+          git -C acore worktree add --detach /tmp/core16 9e30516cccfe095f95948ceb0ac1d6ca265c54e4
           python3 /tmp/core16/tests/cosmic_f14_pass_source/test_f14_before_map_removal_source.py
           git -C acore worktree remove --force /tmp/core16
           python3 acore/tests/cosmic_f14_session_rebind/test_f14_session_rebind_source.py

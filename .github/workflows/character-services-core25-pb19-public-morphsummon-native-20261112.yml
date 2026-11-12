@@ -178,7 +178,7 @@ jobs:
           core=acore
           modules="$core/modules"
           cs="$modules/mod-character-services"
-          parent=7775e02a54aa0779947ea32ebc6cd5c2c502092e
+          parent=45e050a1b054a4a03f324204d8a26014f6d41eb4
 
           declare -A expected=(
             ["$core"]=240f625033e6388ad73ba61282b3f62340301a02

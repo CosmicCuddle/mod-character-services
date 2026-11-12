@@ -1,0 +1,221 @@
+name: Character Services Core20 + IP167 combat session-release native gate
+on:
+  push:
+    branches:
+      - ci/cs01-core20-ip167-combat-session-release-native-20261112
+    paths:
+      - '.github/workflows/character-services-core20-ip167-combat-session-release-native-20261112.yml'
+  pull_request:
+    branches:
+      - ci/cs01-core20-ip166-pass-end-cleanup-native-20261112
+    paths:
+      - '.github/workflows/character-services-core20-ip167-combat-session-release-native-20261112.yml'
+permissions:
+  contents: read
+jobs:
+  worldserver:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 170
+    steps:
+      - name: Checkout exact Core20 kept-in-world disconnect hook
+        uses: actions/checkout@v4
+        with:
+          repository: CosmicCuddle/azerothcore-wotlk
+          ref: be46b96a0d2ab73ee22a946305b1308a02751ae9
+          path: acore
+          fetch-depth: 120
+          persist-credentials: false
+      - name: Checkout exact PB15
+        uses: actions/checkout@v4
+        with:
+          repository: CosmicCuddle/mod-playerbots
+          ref: 4b355ea3a8fd00a0b116681bf9db4c7a3eb0e051
+          path: acore/modules/mod-playerbots
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Checkout exact IP167 combat session-release correction
+        uses: actions/checkout@v4
+        with:
+          repository: CosmicCuddle/mod-individual-progression
+          ref: b4a0ee2a6adf1a6ee391d2226f70fa1bc72136bd
+          path: acore/modules/mod-individual-progression
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Checkout exact Naxx292
+        uses: actions/checkout@v4
+        with:
+          repository: CosmicCuddle/Mod-Naxxramas-Core
+          ref: 51d0611476358286505aed3ca806ea250f644f66
+          path: acore/modules/mod-naxxramas-core
+          persist-credentials: false
+      - name: Checkout this Services CI-only child
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: acore/modules/mod-character-services
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify exact tuple and isolated IP167 combat session-release delta
+        shell: bash
+        run: |
+          set -euo pipefail
+          core=acore
+          ip=acore/modules/mod-individual-progression
+          pb=acore/modules/mod-playerbots
+          naxx=acore/modules/mod-naxxramas-core
+          cs=acore/modules/mod-character-services
+          core18=4eea6bb6edc634ef4b4eefab71a27adba29e28db
+          ip166=d3aea3c9612041b05ff7a669fa7906791b5ad7ae
+          services65=5208be751ec8d6a4e2dafcbff14fa2033e8100cc
+          test "$(git -C "$core" rev-parse HEAD)" = be46b96a0d2ab73ee22a946305b1308a02751ae9
+          test "$(git -C "$ip" rev-parse HEAD)" = b4a0ee2a6adf1a6ee391d2226f70fa1bc72136bd
+          test "$(git -C "$pb" rev-parse HEAD)" = 4b355ea3a8fd00a0b116681bf9db4c7a3eb0e051
+          test "$(git -C "$naxx" rev-parse HEAD)" = 51d0611476358286505aed3ca806ea250f644f66
+          test "$(git -C "$cs" rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          git -C "$core" merge-base --is-ancestor "$core18" HEAD
+          git -C "$ip" merge-base --is-ancestor "$ip166" HEAD
+          git -C "$cs" merge-base --is-ancestor "$services65" HEAD
+          git -C "$ip" diff --name-only "$ip166" HEAD | sort >/tmp/ip167-actual
+          printf '%s\n'             '.github/workflows/f14-combat-session-release.yml'             'docs/CUSTOM_MODIFICATIONS_REGISTER.md'             'src/IndividualProgressionF14CurrentCombatOwnership.h'             'src/IndividualProgressionF14CurrentCoreLifecycle.cpp'             'tests/f14_current_combat_ownership_test.cpp'             'tests/test_f14_combat_session_release_source.py' | sort >/tmp/ip167-expected
+          diff -u /tmp/ip167-expected /tmp/ip167-actual
+          test "$(git -C "$cs" diff --name-only "$services65" HEAD)" = '.github/workflows/character-services-core20-ip167-combat-session-release-native-20261112.yml'
+          test -z "$(git -C "$ip" diff --name-only "$ip166" HEAD -- data conf optional sql)"
+          grep -Fqx 'CharacterServices.ExpansionUnlock.Enable = 0' "$cs/conf/character_services.conf.dist"
+          grep -Fqx 'IndividualProgression.PaidExpansion.Enable = 0' "$ip/conf/individualProgression.conf.dist"
+          for flag in PreserveVerifiedRandomBotStageOnLogin ProtectVerifiedRandomBotGroupFloor ForceVerifiedRandomBotTbcFloorOnLogin ExperimentalRndbotPlayerVisibility ExperimentalAttackLifecycleRegistry ProtectVerifiedRandomBotStageFloor; do
+            grep -Fqx "IndividualProgression.F14.$flag = 0" "$ip/conf/individualProgression.conf.dist"
+          done
+          grep -Fqx 'Playerbots.F14TrackNewRandomBotBirth = 0' "$pb/conf/playerbots.conf.dist"
+          grep -Fqx 'NaxxramasCore.MasterLootQuestGive.Enabled = 0' "$naxx/conf/mod_naxxramas_core.conf.dist"
+          grep -Fqx 'NaxxramasCore.WarlockRitual.SecondStagePilot.Enabled = 0' "$naxx/conf/mod_naxxramas_core.conf.dist"
+          echo 'PASS exact Core20/IP167 combat session-release correction on unchanged PB/Naxx/Services; runtime flags remain OFF'
+      - name: Run immutable parent guards plus current IP167 regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          git -C acore worktree add --detach /tmp/core16 9e30516cccfe095f95948ceb0ac1d6ca265c54e4
+          python3 /tmp/core16/tests/cosmic_f14_pass_source/test_f14_before_map_removal_source.py
+          git -C acore worktree remove --force /tmp/core16
+          git -C acore worktree add --detach /tmp/core17 34ad407467fcf6ea02fcce1595f7c0288966042f
+          python3 /tmp/core17/tests/cosmic_f14_session_rebind/test_f14_session_rebind_source.py
+          git -C acore worktree remove --force /tmp/core17
+          git -C acore worktree add --detach /tmp/core18 4eea6bb6edc634ef4b4eefab71a27adba29e28db
+          python3 /tmp/core18/tests/cosmic_f14_token_bound_out/test_f14_token_bound_out_source.py
+          g++ -std=c++17 -Wall -Wextra -Werror -I/tmp/core18/src/server/game/Entities/Object/Updates             /tmp/core18/tests/cosmic_f14_token_bound_out/f14_initial_out_token_test.cpp -o /tmp/f14_initial_out_token_test
+          /tmp/f14_initial_out_token_test
+          git -C acore worktree remove --force /tmp/core18
+          python3 acore/tests/cosmic_f14_session_disconnect/test_f14_session_disconnect_source.py
+          ip=acore/modules/mod-individual-progression
+          git -C "$ip" worktree add --detach /tmp/ip158 d72cb188ce763181b43ceced79fdae9c69b88829
+          python3 /tmp/ip158/tests/test_f14_session_rebind_observer_source.py
+          git -C "$ip" worktree remove --force /tmp/ip158
+          git -C "$ip" worktree add --detach /tmp/ip159 013a2e0e63e41bbd7b21ddf31c6fa4f6fc8ea554
+          python3 /tmp/ip159/tests/test_f14_current_pass_identity_source.py
+          git -C "$ip" worktree remove --force /tmp/ip159
+          git -C "$ip" worktree add --detach /tmp/ip160 390040f57551e16ec016c12058c10c9c229922a7
+          python3 /tmp/ip160/tests/test_f14_token_bound_initial_out_observer_source.py
+          git -C "$ip" worktree remove --force /tmp/ip160
+          git -C "$ip" worktree add --detach /tmp/ip161 cfed841d56f7a528112c665079cea18266b0a4a0
+          python3 /tmp/ip161/tests/test_f14_combat_script_name_collision_source.py
+          git -C "$ip" worktree remove --force /tmp/ip161
+          git -C "$ip" worktree add --detach /tmp/ip163 efe91f3fbd9b12643e903bbbf25f9b59e8c2b624
+          python3 /tmp/ip163/tests/test_f14_combat_slot_release_source.py
+          git -C "$ip" worktree remove --force /tmp/ip163
+          git -C "$ip" worktree add --detach /tmp/ip164 2b46cc76a23d97a0de66274b4a496a30a57c810f
+          python3 /tmp/ip164/tests/test_f14_current_rights_refresh_source.py
+          git -C "$ip" worktree remove --force /tmp/ip164
+          git -C "$ip" worktree add --detach /tmp/ip165 246b638161d10be74e2a9b9046c04c68850b4bdf
+          python3 /tmp/ip165/tests/test_f14_session_disconnect_observer_source.py
+          git -C "$ip" worktree remove --force /tmp/ip165
+          git -C "$ip" worktree add --detach /tmp/ip166 d3aea3c9612041b05ff7a669fa7906791b5ad7ae
+          python3 /tmp/ip166/tests/test_f14_pass_end_invalid_cleanup_source.py
+          git -C "$ip" worktree remove --force /tmp/ip166
+          python3 "$ip/tests/test_f14_combat_session_release_source.py"
+          git -C "$ip" worktree add --detach /tmp/ip155 bd4033b3bc40a142a6096f641677d972f0b06814
+          python3 /tmp/ip155/tests/test_f14_departure_storage_bridge_source.py
+          git -C "$ip" worktree remove --force /tmp/ip155
+          for mode in normal ndebug; do
+            extra=()
+            if [ "$mode" = ndebug ]; then extra+=(-DNDEBUG); fi
+            for test in f14_current_rights_refresh_test f14_current_pass_identity_test f14_current_combat_ownership_test f14_reservation_gate_test f14_owned_restore_shards_test f14_current_viewer_session_test f14_departure_storage_bridge_test; do
+              g++ -std=c++17 -Wall -Wextra -Werror -pthread "${extra[@]}" -I"$ip/src" "$ip/tests/$test.cpp" -o "/tmp/$test"
+              "/tmp/$test"
+            done
+          done
+          g++ -std=c++17 -Wall -Wextra -Werror -c "$ip/src/IndividualProgressionF14CurrentCoreLifecycle.cpp" -o /tmp/current-off.o
+      - name: Install compile dependencies on disposable runner only
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends git cmake ninja-build g++ make pkg-config file libmysqlclient-dev libssl-dev libbz2-dev libreadline-dev libncurses-dev libboost-all-dev
+      - name: Generate static module graph with Core20 and IP167 corrected observer stack ON
+        run: |
+          cmake -S acore -B acore-build -G Ninja             -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON             -DCMAKE_CXX_FLAGS="-DCOSMIC_IP_F14_REQUIRE_PLAYERBOTS -DCOSMIC_IP_F14_CORE6_ACTOR_WHO_NEGATIVE_ADAPTER_EXPERIMENT=1 -DCOSMIC_F14_NOTIFIER_PASS_LIFECYCLE_EXPERIMENT=1 -DCOSMIC_F14_CREATURE_BATCH_GUID_EVIDENCE_EXPERIMENT=1 -DCOSMIC_F14_PRE_SEND_CREATURE_OUT_EVIDENCE_EXPERIMENT=1 -DCOSMIC_IP_F14_VERIFIED_ACTOR_PUBLICATION_EXPERIMENT=1 -DCOSMIC_IP_F14_CORE6_POSITIVE_RNDBOT_VIEWER_POLICY_EXPERIMENT=1 -DCOSMIC_F14_PLAYER_CLIENT_VIEWER_QUERY_EXPERIMENT=1 -DCOSMIC_F14_WHO_GUID_QUERY_EXPERIMENT=1 -DCOSMIC_F14_CREATURE_CLIENT_VIEWER_QUERY_EXPERIMENT=1 -DCOSMIC_F14_PRE_MAP_REMOVAL_EXPERIMENT=1 -DCOSMIC_IP_F14_CURRENT_CORE_LIFECYCLE_OBSERVER_EXPERIMENT=1 -DCOSMIC_IP_F14_CURRENT_COMBAT_OWNERSHIP_EXPERIMENT=1 -DCOSMIC_F14_SESSION_REBIND_EXPERIMENT=1 -DCOSMIC_IP_F14_SESSION_REBIND_OBSERVER_EXPERIMENT=1 -DCOSMIC_IP_F14_CURRENT_PASS_IDENTITY_EXPERIMENT=1 -DCOSMIC_F14_TOKEN_BOUND_CREATURE_OUT_QUERY_EXPERIMENT=1 -DCOSMIC_IP_F14_TOKEN_BOUND_INITIAL_OUT_OBSERVER_EXPERIMENT=1 -DCOSMIC_IP_F14_CURRENT_RIGHTS_REFRESH_EXPERIMENT=1 -DCOSMIC_F14_SESSION_DISCONNECT_EXPERIMENT=1 -DCOSMIC_IP_F14_SESSION_DISCONNECT_OBSERVER_EXPERIMENT=1"             -DMODULES=static -DSCRIPTS=static -DAPPS_BUILD=world-only -DTOOLS_BUILD=none -DUSE_COREPCH=ON -DUSE_SCRIPTPCH=ON
+      - name: Prove Core20/IP167 observer macros across actual compile commands
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, shlex
+          from pathlib import Path
+          entries = json.loads(Path('acore-build/compile_commands.json').read_text())
+          required = (
+            'COSMIC_F14_NOTIFIER_PASS_LIFECYCLE_EXPERIMENT',
+            'COSMIC_F14_CREATURE_BATCH_GUID_EVIDENCE_EXPERIMENT',
+            'COSMIC_F14_PRE_SEND_CREATURE_OUT_EVIDENCE_EXPERIMENT',
+            'COSMIC_F14_CREATURE_CLIENT_VIEWER_QUERY_EXPERIMENT',
+            'COSMIC_F14_PLAYER_CLIENT_VIEWER_QUERY_EXPERIMENT',
+            'COSMIC_F14_WHO_GUID_QUERY_EXPERIMENT',
+            'COSMIC_F14_PRE_MAP_REMOVAL_EXPERIMENT',
+            'COSMIC_IP_F14_VERIFIED_ACTOR_PUBLICATION_EXPERIMENT',
+            'COSMIC_IP_F14_CURRENT_CORE_LIFECYCLE_OBSERVER_EXPERIMENT',
+            'COSMIC_IP_F14_CURRENT_COMBAT_OWNERSHIP_EXPERIMENT',
+            'COSMIC_F14_SESSION_REBIND_EXPERIMENT',
+            'COSMIC_IP_F14_SESSION_REBIND_OBSERVER_EXPERIMENT',
+            'COSMIC_IP_F14_CURRENT_PASS_IDENTITY_EXPERIMENT',
+            'COSMIC_F14_TOKEN_BOUND_CREATURE_OUT_QUERY_EXPERIMENT',
+            'COSMIC_IP_F14_TOKEN_BOUND_INITIAL_OUT_OBSERVER_EXPERIMENT',
+            'COSMIC_IP_F14_CURRENT_RIGHTS_REFRESH_EXPERIMENT',
+            'COSMIC_F14_SESSION_DISCONNECT_EXPERIMENT',
+            'COSMIC_IP_F14_SESSION_DISCONNECT_OBSERVER_EXPERIMENT',
+          )
+          targets = {
+            '/src/server/game/Maps/Map.cpp',
+            '/src/server/game/Handlers/CharacterHandler.cpp',
+            '/src/server/game/Server/WorldSession.cpp',
+            '/src/server/game/Entities/Player/PlayerUpdates.cpp',
+            '/src/server/game/Scripting/ScriptDefines/AllMapScript.cpp',
+            '/src/server/game/Scripting/ScriptDefines/PlayerScript.cpp',
+            '/src/server/game/Scripting/ScriptDefines/WorldObjectScript.cpp',
+            '/mod-individual-progression/src/IndividualProgressionF14CurrentCoreLifecycle.cpp',
+            '/mod-individual-progression/src/IndividualProgressionF14LifecycleScript.cpp',
+            '/mod-playerbots/src/Bot/PlayerbotMgr.cpp',
+            '/mod-character-services/src/CharacterServices.cpp',
+            '/mod-naxxramas-core/src/Systems/MasterLootQuestGive.cpp',
+          }
+          seen = set()
+          count = 0
+          for entry in entries:
+            src = entry['file'].replace('\\', '/')
+            if not src.endswith('.cpp') or not ('/acore/src/' in src or '/acore/modules/' in src):
+              continue
+            argv = entry.get('arguments') or shlex.split(entry['command'])
+            for macro in required:
+              defs = [a for a in argv if a == '-D'+macro or a.startswith('-D'+macro+'=')]
+              assert defs == ['-D'+macro+'=1'] and '-U'+macro not in argv, (src, macro, defs)
+            assert not any(a.startswith('-DCOSMIC_IP_F14_TAGGED_GUID_OBSERVER_EXPERIMENT') for a in argv), src
+            seen.update(t for t in targets if src.endswith(t))
+            count += 1
+          assert seen == targets, ('missing actual compile units', targets-seen)
+          assert count > 0
+          print('PASS uniform Core20/IP167 combat-session-release observer ABI across', count, 'C++ translation units')
+          PY
+      - name: Compile AND link actual Worldserver (NO SERVER START)
+        run: cmake --build acore-build --target worldserver --parallel 2
+      - name: Verify resulting binary without running it
+        run: |
+          test -s acore-build/src/server/apps/worldserver
+          test -x acore-build/src/server/apps/worldserver
+          echo 'PASS Core20/IP167/PB15/Naxx292/Services combat-session-release observer native link; no gameplay or deployment evidence'
+      - name: Safety boundary
+        if: always()
+        run: |
+          echo 'No live server, SQL, config, database, account, client or packet operation. Core20 + IP167 observer stack compile enabled only in disposable runner; IP160 callback remains hard-forced FALSE, F14/Paid settings OFF. Services65 remains independent.'

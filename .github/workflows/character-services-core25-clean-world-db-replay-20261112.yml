@@ -1,0 +1,127 @@
+name: Character Services Core25 clean world DB replay
+
+on:
+  push:
+    branches:
+      - ci/cs01-core25-clean-world-db-replay-20261112
+    paths:
+      - '.github/workflows/character-services-core25-clean-world-db-replay-20261112.yml'
+  pull_request:
+    branches:
+      - ci/cs01-core25-pb19-ip168-expanded-stack-native-20261112
+    paths:
+      - '.github/workflows/character-services-core25-clean-world-db-replay-20261112.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  clean-world-db:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      MYSQL_PWD: root
+
+    steps:
+      - name: Checkout exact preferred Core25 runtime
+        uses: actions/checkout@v4
+        with:
+          repository: CosmicCuddle/azerothcore-wotlk
+          ref: 395b68ee4ce425826c2a79c0ddf3ade3c67c8160
+          path: core25
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify immutable Core25 and clean-install contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C core25 rev-parse HEAD)" = 395b68ee4ce425826c2a79c0ddf3ade3c67c8160
+
+          # DBUpdater::Populate imports every base .sql file into an empty database.
+          grep -Fq 'std::string const DirPathStr = info.baseFilesDirectory' core25/src/server/database/Updater/DBUpdater.cpp
+          grep -Fq 'for (auto const& file : sqlFiles)' core25/src/server/database/Updater/DBUpdater.cpp
+
+          # Fresh June squash starts with the modern ACDB creature columns while
+          # this runtime loader expects creature.id. The later updater chain must
+          # therefore contain and successfully apply the compatibility bridge.
+          grep -Fq '`id1` int unsigned' core25/data/sql/base/db_world/creature.sql
+          grep -Fq 'SELECT creature.guid, id, map' core25/src/server/game/Globals/ObjectMgr.cpp
+          grep -Fq "('2026_06_01_01.sql'" core25/data/sql/base/db_world/updates.sql
+
+      - name: Start documented GitHub-runner MySQL 8
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo systemctl start mysql.service
+          mysql -uroot -e 'SELECT VERSION();'
+
+      - name: Auto-populate disposable world database from exact Core25 base
+        shell: bash
+        run: |
+          set -euo pipefail
+          mysql -uroot -e "DROP DATABASE IF EXISTS acore_world_clean_replay; CREATE DATABASE acore_world_clean_replay CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
+          while IFS= read -r file; do
+            echo "BASE $file"
+            mysql -uroot acore_world_clean_replay < "$file"
+          done < <(find core25/data/sql/base/db_world -maxdepth 1 -type f -name '*.sql' | sort)
+
+          test "$(mysql -uroot -N -B information_schema -e "SELECT COUNT(*) FROM columns WHERE table_schema='acore_world_clean_replay' AND table_name='creature' AND column_name='id1';")" = 1
+          test "$(mysql -uroot -N -B information_schema -e "SELECT COUNT(*) FROM columns WHERE table_schema='acore_world_clean_replay' AND table_name='creature' AND column_name='id';")" = 0
+          test "$(mysql -uroot -N -B acore_world_clean_replay -e "SELECT COUNT(*) FROM updates WHERE name='2026_06_01_01.sql';")" = 1
+          test "$(mysql -uroot -N -B acore_world_clean_replay -e "SELECT COUNT(*) FROM updates WHERE name='2026_06_01_02.sql';")" = 0
+
+      - name: Replay every pending current world updater in filename order
+        shell: bash
+        run: |
+          set -euo pipefail
+          applied=0
+          skipped=0
+
+          while IFS= read -r file; do
+            name="$(basename "$file")"
+            known="$(mysql -uroot -N -B acore_world_clean_replay -e "SELECT COUNT(*) FROM updates WHERE name='$name';")"
+            if [ "$known" = 1 ]; then
+              skipped=$((skipped + 1))
+              continue
+            fi
+
+            echo "UPDATE $name"
+            if ! mysql -uroot acore_world_clean_replay < "$file"; then
+              echo "FAILED_UPDATE=$name"
+              exit 1
+            fi
+            applied=$((applied + 1))
+          done < <(find core25/data/sql/updates/db_world -maxdepth 1 -type f -name '*.sql' | sort)
+
+          echo "APPLIED_PENDING_WORLD_UPDATES=$applied"
+          echo "SKIPPED_BASE_RECORDED_WORLD_UPDATES=$skipped"
+          test "$applied" -gt 500
+
+      - name: Assert final runtime-facing world schema
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo 'Final creature columns:'
+          mysql -uroot -N -B information_schema -e "SELECT column_name FROM columns WHERE table_schema='acore_world_clean_replay' AND table_name='creature' ORDER BY ordinal_position;"
+
+          test "$(mysql -uroot -N -B information_schema -e "SELECT COUNT(*) FROM columns WHERE table_schema='acore_world_clean_replay' AND table_name='creature' AND column_name='id';")" = 1
+
+          # Execute the exact leading loader contract rather than relying only on grep.
+          mysql -uroot acore_world_clean_replay -e "SELECT creature.guid, id, map, equipment_id, position_x, position_y, position_z, orientation, spawntimesecs, wander_distance FROM creature LIMIT 1;" >/dev/null
+
+          # Restack high-risk final-state checks.
+          test "$(mysql -uroot -N -B information_schema -e "SELECT COUNT(*) FROM tables WHERE table_schema='acore_world_clean_replay' AND table_name='spell_proc_event';")" = 0
+          test "$(mysql -uroot -N -B information_schema -e "SELECT COUNT(*) FROM tables WHERE table_schema='acore_world_clean_replay' AND table_name='acore_string_locale';")" = 1
+          test "$(mysql -uroot -N -B information_schema -e "SELECT COUNT(*) FROM columns WHERE table_schema='acore_world_clean_replay' AND table_name='acore_string' AND column_name LIKE 'locale\\_%';")" = 0
+
+          echo 'PASS clean Core25 world DB base + all pending current world updates satisfies runtime-facing schema checks'
+
+      - name: Safety and evidence boundary
+        if: always()
+        run: |
+          echo 'Disposable GitHub runner and disposable MySQL database only.'
+          echo 'No owner database, host, config, server start, account, client, merge, deployment or production migration.'
+          echo 'This tests the clean-install world DB lineage only; it does NOT rehearse CosmicCuddle historical owner database migration.'

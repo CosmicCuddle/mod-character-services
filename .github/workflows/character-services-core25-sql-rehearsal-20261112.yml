@@ -1,0 +1,170 @@
+name: Character Services Core25 high-risk SQL mechanics rehearsal
+
+on:
+  push:
+    branches:
+      - ci/cs01-core25-sql-rehearsal-20261112
+    paths:
+      - '.github/workflows/character-services-core25-sql-rehearsal-20261112.yml'
+  pull_request:
+    branches:
+      - ci/cs01-core25-pb19-ip168-expanded-stack-native-20261112
+    paths:
+      - '.github/workflows/character-services-core25-sql-rehearsal-20261112.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  sql-rehearsal:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      MYSQL_PWD: root
+
+    steps:
+      - name: Checkout exact Core23 pre-restack baseline
+        uses: actions/checkout@v4
+        with:
+          repository: CosmicCuddle/azerothcore-wotlk
+          ref: dbb1dd5150f330d88522a10b85e93546fff72bad
+          path: core23
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Checkout exact Core25 runtime restack
+        uses: actions/checkout@v4
+        with:
+          repository: CosmicCuddle/azerothcore-wotlk
+          ref: 395b68ee4ce425826c2a79c0ddf3ade3c67c8160
+          path: core25
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify immutable tuple and historical-lineage boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C core23 rev-parse HEAD)" = dbb1dd5150f330d88522a10b85e93546fff72bad
+          test "$(git -C core25 rev-parse HEAD)" = 395b68ee4ce425826c2a79c0ddf3ade3c67c8160
+
+          # Important boundary: this fork's chronological release SQL and runtime loader
+          # use creature.id, while the current fresh-install ACDB base snapshot contains
+          # creature.id1/id2/id3. Therefore a current base dump is NOT a valid stand-in
+          # for CosmicCuddle's historical 2026_10_14_04 owner database.
+          grep -Fq '`id1` int unsigned' core23/data/sql/base/db_world/creature.sql
+          grep -Fq 'SELECT creature.guid, id, map' core23/src/server/game/Globals/ObjectMgr.cpp
+          grep -Fq 'AND `id` = 15184' core23/data/sql/updates/db_world/2026_10_14_05.sql
+          grep -Fq 'AND `id` = 19673' core25/data/sql/updates/db_world/2026_10_24_02.sql
+
+          # These are the exact destructive/data-mutating updates rehearsed below.
+          grep -Fq 'CREATE TABLE IF NOT EXISTS `acore_string_locale`' core25/data/sql/updates/db_world/2026_10_25_00.sql
+          grep -Fq 'DROP TABLE IF EXISTS `spell_proc_event`' core25/data/sql/updates/db_world/2026_10_28_00.sql
+          grep -Fq 'DROP COLUMN `locale_koKR`' core25/data/sql/updates/db_world/2026_10_31_00.sql
+          grep -Fq 'SET `cp`.`slot` = 100' core25/data/sql/updates/db_characters/2026_10_31_00.sql
+
+      - name: Start preinstalled GitHub-runner MySQL 8 only
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo systemctl start mysql.service
+          mysql -uroot -e 'SELECT VERSION();'
+
+      - name: Assemble only the exact high-risk table fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          mysql -uroot -e "DROP DATABASE IF EXISTS acore_world_rehearsal; CREATE DATABASE acore_world_rehearsal CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+          mysql -uroot -e "DROP DATABASE IF EXISTS acore_characters_rehearsal; CREATE DATABASE acore_characters_rehearsal CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
+          # Import the exact pre-restack table definitions relevant to these migrations.
+          # We deliberately do NOT import the whole fresh-install world base because it is
+          # not the historical schema lineage used by the owner's released database.
+          mysql -uroot acore_world_rehearsal < core23/data/sql/base/db_world/acore_string.sql
+          mysql -uroot acore_world_rehearsal < core23/data/sql/base/db_world/spell_proc_event.sql
+          mysql -uroot acore_characters_rehearsal < core23/data/sql/base/db_characters/character_pet.sql
+
+          mysql -uroot acore_world_rehearsal <<'SQL'
+          DELETE FROM acore_string WHERE entry = 990001;
+          INSERT INTO acore_string
+            (entry, content_default, locale_koKR, locale_frFR, locale_deDE, locale_zhCN, locale_zhTW, locale_esES, locale_esMX, locale_ruRU)
+          VALUES
+            (990001, 'fixture-default', '', 'fixture-fr-column', 'fixture-de-column', '', '', '', '', '');
+          SQL
+
+          mysql -uroot acore_characters_rehearsal <<'SQL'
+          DELETE FROM character_pet WHERE owner IN (990001, 990002, 990003);
+          INSERT INTO character_pet (id, entry, owner, PetType, level, slot, savetime) VALUES
+            (990011, 1, 990001, 0, 60, 0, 100),
+            (990012, 1, 990001, 0, 60, 0, 200),
+            (990013, 1, 990001, 0, 60, 0, 200),
+            (990021, 1, 990002, 0, 60, 0, 150),
+            (990031, 1, 990003, 1, 60, 0, 100),
+            (990032, 1, 990003, 1, 60, 0, 200);
+          SQL
+
+          test "$(mysql -uroot -N -B acore_world_rehearsal -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='acore_world_rehearsal' AND table_name='spell_proc_event';")" = 1
+          test "$(mysql -uroot -N -B acore_world_rehearsal -e "SELECT locale_frFR FROM acore_string WHERE entry=990001;")" = fixture-fr-column
+          test "$(mysql -uroot -N -B acore_characters_rehearsal -e "SELECT COUNT(*) FROM character_pet WHERE owner IN (990001,990002,990003);")" = 6
+
+      - name: Apply exact high-risk Core25 world migrations
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Locale table prerequisite.
+          mysql -uroot acore_world_rehearsal < core25/data/sql/updates/db_world/2026_10_25_00.sql
+
+          # Existing new-format content must win over the legacy locale column.
+          mysql -uroot acore_world_rehearsal <<'SQL'
+          DELETE FROM acore_string_locale WHERE entry=990001 AND locale='frFR';
+          INSERT INTO acore_string_locale (entry, locale, content)
+          VALUES (990001, 'frFR', 'fixture-fr-table');
+          SQL
+
+          # Destructive proc table removal and locale-column conversion.
+          mysql -uroot acore_world_rehearsal < core25/data/sql/updates/db_world/2026_10_28_00.sql
+          mysql -uroot acore_world_rehearsal < core25/data/sql/updates/db_world/2026_10_31_00.sql
+
+      - name: Apply exact Core25 character pet normalization
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(mysql -uroot -N -B acore_characters_rehearsal -e "SELECT COUNT(*) FROM character_pet WHERE owner IN (990001,990002,990003);")" = 6
+          mysql -uroot acore_characters_rehearsal < core25/data/sql/updates/db_characters/2026_10_31_00.sql
+
+      - name: Assert destructive-schema and data-preservation postconditions
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # spell_proc_event must be gone after 2026_10_28_00.
+          test "$(mysql -uroot -N -B acore_world_rehearsal -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='acore_world_rehearsal' AND table_name='spell_proc_event';")" = 0
+
+          # Legacy locale columns must be gone and new table present.
+          test "$(mysql -uroot -N -B acore_world_rehearsal -e "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='acore_world_rehearsal' AND table_name='acore_string' AND column_name LIKE 'locale\\_%';")" = 0
+          test "$(mysql -uroot -N -B acore_world_rehearsal -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='acore_world_rehearsal' AND table_name='acore_string_locale';")" = 1
+
+          # Existing new-format text wins; untouched legacy text migrates; default survives.
+          test "$(mysql -uroot -N -B acore_world_rehearsal -e "SELECT content FROM acore_string_locale WHERE entry=990001 AND locale='frFR';")" = fixture-fr-table
+          test "$(mysql -uroot -N -B acore_world_rehearsal -e "SELECT content FROM acore_string_locale WHERE entry=990001 AND locale='deDE';")" = fixture-de-column
+          test "$(mysql -uroot -N -B acore_world_rehearsal -e "SELECT content_default FROM acore_string WHERE entry=990001;")" = fixture-default
+
+          # Pet migration keeps newest (savetime, then id) current and moves only older
+          # PetType=0 duplicates to slot 100. It must not delete rows or touch PetType=1.
+          test "$(mysql -uroot -N -B acore_characters_rehearsal -e "SELECT COUNT(*) FROM character_pet WHERE owner IN (990001,990002,990003);")" = 6
+          test "$(mysql -uroot -N -B acore_characters_rehearsal -e "SELECT slot FROM character_pet WHERE id=990011;")" = 100
+          test "$(mysql -uroot -N -B acore_characters_rehearsal -e "SELECT slot FROM character_pet WHERE id=990012;")" = 100
+          test "$(mysql -uroot -N -B acore_characters_rehearsal -e "SELECT slot FROM character_pet WHERE id=990013;")" = 0
+          test "$(mysql -uroot -N -B acore_characters_rehearsal -e "SELECT slot FROM character_pet WHERE id=990021;")" = 0
+          test "$(mysql -uroot -N -B acore_characters_rehearsal -e "SELECT COUNT(*) FROM character_pet WHERE owner=990003 AND PetType=1 AND slot=0;")" = 2
+
+          echo 'PASS targeted Core25 high-risk SQL mechanics: locale migration, spell_proc_event removal and character_pet normalization behaved as specified'
+
+      - name: Safety and evidence boundary
+        if: always()
+        run: |
+          echo 'Disposable GitHub runner only.'
+          echo 'No owner database, host, config, account, client, server start, deployment or production migration.'
+          echo 'This does NOT rehearse the complete 52-file owner migration chain.'
+          echo 'Full-chain proof requires an exact copied owner/historical fork database at the verified live updater position.'

@@ -192,10 +192,75 @@ jobs:
           git -C acore worktree add --detach /tmp/core21 991f2c86c928222d501a559a61434cfd15055dc8
           python3 /tmp/core21/tests/cosmic_f14_token_query_fail_visible/test_f14_token_query_fail_visible_source.py
           git -C acore worktree remove --force /tmp/core21
-          python3 acore/tests/cosmic_f14_token_bound_create_current/test_f14_token_bound_create_current_source.py
+          # Core23's test includes an immutable exact changed-path contract, so replay
+          # that historical contract on the exact Core23 head instead of a later
+          # upstream-restacked descendant.
+          git -C acore worktree add --detach /tmp/core23 dbb1dd5150f330d88522a10b85e93546fff72bad
+          python3 /tmp/core23/tests/cosmic_f14_token_bound_create_current/test_f14_token_bound_create_current_source.py
+          git -C acore worktree remove --force /tmp/core23
+
+          # Separately prove the CURRENT Core25 restack still carries the semantic
+          # token-bound CREATE/OUT fail-visible contract. This intentionally does
+          # not assert Core23's historical eight-path diff scope.
+          python3 - <<'PY'
+          from pathlib import Path
+
+          root = Path('acore')
+          player = (root/'src/server/game/Entities/Player/PlayerUpdates.cpp').read_text()
+          ud = (root/'src/server/game/Entities/Object/Updates/UpdateData.h').read_text()
+          woc = (root/'src/server/game/Scripting/ScriptDefines/WorldObjectScript.cpp').read_text()
+          woh = (root/'src/server/game/Scripting/ScriptDefines/WorldObjectScript.h').read_text()
+          sm = (root/'src/server/game/Scripting/ScriptMgr.h').read_text()
+
+          for needle in (
+              'COSMIC_F14_TOKEN_BOUND_CREATURE_CREATE_QUERY_EXPERIMENT',
+              'IsF14CreatureSuppressedFromClientViewForInitialCreate(',
+              'data.F14MayAskInitialCreateQuery()',
+              'data.F14InitialCreateQueryToken()',
+              'ShouldF14SuppressCreatureInitialCreateForViewer(',
+              'IsF14CreatureSuppressedFromClientViewForInitialOut(',
+              'ShouldF14SuppressCreatureInitialOutForViewer(',
+          ):
+              assert needle in player, ('Core25 lost token-bound visibility contract', needle)
+
+          batched = player.split('template <class T>\nvoid Player::UpdateVisibilityOf(T* target, UpdateData& data',1)[1].split('void Player::GetInitialVisiblePackets',1)[0]
+          assert 'IsF14CreatureSuppressedFromClientViewForInitialCreate(' in batched
+          assert 'data.F14MayAskInitialCreateQuery()' in batched
+          create_macro = batched.split('#if defined(COSMIC_F14_TOKEN_BOUND_CREATURE_CREATE_QUERY_EXPERIMENT)',1)[1].split('#else',1)[0]
+          assert 'IsF14CreatureSuppressedFromClientView(this, target)' not in create_macro
+
+          direct = player.split('void Player::UpdateVisibilityOf(WorldObject* target)',1)[1]
+          assert 'IsF14CreatureSuppressedFromClientViewForInitialCreate(' not in direct
+          assert 'F14InitialCreateQueryToken' not in direct
+
+          assert 'F14MayAskInitialCreateQuery() const' in ud
+          token_piece = ud.split('F14InitialCreateQueryToken() const',1)[1].split('#endif',1)[0]
+          assert '_f14InitialOutAdmission.Token()' in token_piece
+
+          for text, needle in (
+              (woh, 'WORLDOBJECTHOOK_ON_F14_VIEWER_CREATURE_INITIAL_CREATE_TOKEN_QUERY'),
+              (woh, 'OnF14ShouldSuppressCreatureInitialCreateForViewer'),
+              (woc, 'WORLDOBJECTHOOK_ON_F14_VIEWER_CREATURE_INITIAL_CREATE_TOKEN_QUERY'),
+              (sm, 'ShouldF14SuppressCreatureInitialCreateForViewer'),
+          ):
+              assert needle in text, ('Core25 CREATE script ABI missing', needle)
+
+          for name, marker in (
+              ('OUT', 'bool ScriptMgr::ShouldF14SuppressCreatureInitialOutForViewer('),
+              ('CREATE', 'bool ScriptMgr::ShouldF14SuppressCreatureInitialCreateForViewer('),
+          ):
+              fn = woc.split(marker,1)[1].split('#endif',1)[0]
+              assert 'if (!viewer || !creature || !token)' in fn, name
+              assert 'return false;' in fn, name
+              assert 'ASSERT(viewer && creature && token)' not in fn, name
+              assert 'CALL_ENABLED_BOOLEAN_HOOKS_WITH_DEFAULT_FALSE' in fn, name
+
+          print('PASS Core25 current token-bound CREATE/OUT semantic contract remains default-FALSE and fail-visible')
+          PY
+
           g++ -std=c++17 -Wall -Wextra -Werror -Iacore/src/server/game/Entities/Object/Updates \
-            acore/tests/cosmic_f14_token_bound_out/f14_initial_out_token_test.cpp -o /tmp/f14_core23_visibility_pass_token_test
-          /tmp/f14_core23_visibility_pass_token_test
+            acore/tests/cosmic_f14_token_bound_out/f14_initial_out_token_test.cpp -o /tmp/f14_core25_visibility_pass_token_test
+          /tmp/f14_core25_visibility_pass_token_test
           ip=acore/modules/mod-individual-progression
           git -C "$ip" worktree add --detach /tmp/ip158 d72cb188ce763181b43ceced79fdae9c69b88829
           python3 /tmp/ip158/tests/test_f14_session_rebind_observer_source.py

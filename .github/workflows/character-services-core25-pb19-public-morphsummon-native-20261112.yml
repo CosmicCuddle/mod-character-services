@@ -1,0 +1,365 @@
+name: Character Services Core25 + PB19 + public MorphSummon native gate
+
+on:
+  push:
+    branches:
+      - ci/cs01-core25-pb19-public-morphsummon-native-20261112
+    paths:
+      - '.github/workflows/character-services-core25-pb19-public-morphsummon-native-20261112.yml'
+  pull_request:
+    branches:
+      - ci/cs01-core25-pb19-ip168-expanded-stack-native-20261112
+    paths:
+      - '.github/workflows/character-services-core25-pb19-public-morphsummon-native-20261112.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  worldserver:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - name: Checkout exact Core25 upstream-restack review head
+        uses: actions/checkout@v4
+        with:
+          repository: CosmicCuddle/azerothcore-wotlk
+          ref: 240f625033e6388ad73ba61282b3f62340301a02
+          path: acore
+          fetch-depth: 120
+          persist-credentials: false
+
+      - name: Checkout exact PB19 current-upstream restack review head
+        uses: actions/checkout@v4
+        with:
+          repository: CosmicCuddle/mod-playerbots
+          ref: 92e7b539c249e91a4046e0b6ce0dbc6d39783284
+          path: acore/modules/mod-playerbots
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Checkout exact IP168
+        uses: actions/checkout@v4
+        with:
+          repository: CosmicCuddle/mod-individual-progression
+          ref: 455597329f2578c634091b8c3a79d83b31181d40
+          path: acore/modules/mod-individual-progression
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Checkout exact Naxx292
+        uses: actions/checkout@v4
+        with:
+          repository: CosmicCuddle/Mod-Naxxramas-Core
+          ref: 51d0611476358286505aed3ca806ea250f644f66
+          path: acore/modules/mod-naxxramas-core
+          persist-credentials: false
+
+      - name: Checkout merged World Party Scaling
+        uses: actions/checkout@v4
+        with:
+          repository: CosmicCuddle/mod-world-party-scaling
+          ref: 36ad573c0ee22e24abf3f48b6e40c4bc360ec8e8
+          path: acore/modules/mod-world-party-scaling
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Checkout pinned public AutoBalance reference
+        uses: actions/checkout@v4
+        with:
+          repository: azerothcore/mod-autobalance
+          ref: 1d707cb61a0962ab01e4123681e2d3b66cc558a2
+          path: acore/modules/mod-autobalance
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Checkout public 1v1 Arena reference
+        uses: actions/checkout@v4
+        with:
+          repository: azerothcore/mod-1v1-arena
+          ref: 5ef5708d031f3b02283e6e599aa655bd320d904e
+          path: acore/modules/mod-1v1-arena
+          persist-credentials: false
+
+      - name: Checkout public AHBot Plus reference
+        uses: actions/checkout@v4
+        with:
+          repository: NathanHandley/mod-ah-bot-plus
+          ref: f685832994c825f90aa5a3dc0e1620aa568e875b
+          path: acore/modules/mod-ah-bot-plus
+          persist-credentials: false
+
+      - name: Checkout public ALE reference
+        uses: actions/checkout@v4
+        with:
+          repository: azerothcore/mod-ale
+          ref: 84b85cc55980dbf67d596f3d5cb34ded10c59102
+          path: acore/modules/mod-ale
+          persist-credentials: false
+
+      - name: Checkout public Dynamic XP reference
+        uses: actions/checkout@v4
+        with:
+          repository: azerothcore/mod-dynamic-xp
+          ref: 06d5d370aa7d8d8644ed241f03a986e28195c2f4
+          path: acore/modules/mod-dynamic-xp
+          persist-credentials: false
+
+      - name: Checkout public Increment Cache Version reference
+        uses: actions/checkout@v4
+        with:
+          repository: sogladev/mod-increment-cache-version
+          ref: 0f1172a1b510830f71425a6db06276f1ec516709
+          path: acore/modules/mod-increment-cache-version
+          persist-credentials: false
+
+      - name: Checkout public Individual XP reference
+        uses: actions/checkout@v4
+        with:
+          repository: azerothcore/mod-individual-xp
+          ref: 1e7640aac09a62a5ca521456aff71e45fa915155
+          path: acore/modules/mod-individual-xp
+          persist-credentials: false
+
+      - name: Checkout public MultiBot Bridge reference
+        uses: actions/checkout@v4
+        with:
+          repository: Wishmaster117/mod-multibot-bridge
+          ref: 9f0e8ba767c65f7959a615f70e61ec0980266780
+          path: acore/modules/mod-multibot-bridge
+          persist-credentials: false
+
+      - name: Checkout public Weather Vibe reference
+        uses: actions/checkout@v4
+        with:
+          repository: hermensbas/mod_weather_vibe
+          ref: cb854eb96ef9fa7fa4fd1f6e2d3340fcadb945e8
+          path: acore/modules/mod_weather_vibe
+          persist-credentials: false
+
+      - name: Checkout public Dungeon Clear reference
+        uses: actions/checkout@v4
+        with:
+          repository: jrad7/mod-dungeon-clear
+          ref: 484c802b2f4534a935b7d20cbb29e27d72d388e2
+          path: acore/modules/mod-dungeon-clear
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Checkout current public MorphSummon reference
+        uses: actions/checkout@v4
+        with:
+          repository: azerothcore/mod-morphsummon
+          ref: b1fc9db72b5acbdd30639a131fe84da53c82d8f2
+          path: acore/modules/mod-morphsummon
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Checkout public Character Order reference
+        uses: actions/checkout@v4
+        with:
+          repository: Souicia/mod-character-order
+          ref: 227097340829ed8bd4a6b1c94445d59537d9c86a
+          path: acore/modules/mod-character-order
+          persist-credentials: false
+
+      - name: Checkout this Services CI-only child
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: acore/modules/mod-character-services
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify exact expanded tuple and preservation exclusions
+        shell: bash
+        run: |
+          set -euo pipefail
+          core=acore
+          modules="$core/modules"
+          cs="$modules/mod-character-services"
+          parent=45e050a1b054a4a03f324204d8a26014f6d41eb4
+
+          declare -A expected=(
+            ["$core"]=240f625033e6388ad73ba61282b3f62340301a02
+            ["$modules/mod-playerbots"]=92e7b539c249e91a4046e0b6ce0dbc6d39783284
+            ["$modules/mod-individual-progression"]=455597329f2578c634091b8c3a79d83b31181d40
+            ["$modules/mod-naxxramas-core"]=51d0611476358286505aed3ca806ea250f644f66
+            ["$modules/mod-world-party-scaling"]=36ad573c0ee22e24abf3f48b6e40c4bc360ec8e8
+            ["$modules/mod-autobalance"]=1d707cb61a0962ab01e4123681e2d3b66cc558a2
+            ["$modules/mod-1v1-arena"]=5ef5708d031f3b02283e6e599aa655bd320d904e
+            ["$modules/mod-ah-bot-plus"]=f685832994c825f90aa5a3dc0e1620aa568e875b
+            ["$modules/mod-ale"]=84b85cc55980dbf67d596f3d5cb34ded10c59102
+            ["$modules/mod-dynamic-xp"]=06d5d370aa7d8d8644ed241f03a986e28195c2f4
+            ["$modules/mod-increment-cache-version"]=0f1172a1b510830f71425a6db06276f1ec516709
+            ["$modules/mod-individual-xp"]=1e7640aac09a62a5ca521456aff71e45fa915155
+            ["$modules/mod-multibot-bridge"]=9f0e8ba767c65f7959a615f70e61ec0980266780
+            ["$modules/mod_weather_vibe"]=cb854eb96ef9fa7fa4fd1f6e2d3340fcadb945e8
+            ["$modules/mod-dungeon-clear"]=484c802b2f4534a935b7d20cbb29e27d72d388e2
+            ["$modules/mod-character-order"]=227097340829ed8bd4a6b1c94445d59537d9c86a
+            ["$modules/mod-morphsummon"]=b1fc9db72b5acbdd30639a131fe84da53c82d8f2
+          )
+          for path in "${!expected[@]}"; do
+            actual="$(git -C "$path" rev-parse HEAD)"
+            test "$actual" = "${expected[$path]}" || {
+              echo "Unexpected SHA for $path: $actual"
+              exit 1
+            }
+          done
+
+          test "$(git -C "$cs" rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          git -C "$cs" merge-base --is-ancestor "$parent" HEAD
+          git -C "$cs" diff --name-only "$parent" HEAD | sort >/tmp/services73-actual
+          printf '%s\n' '.github/workflows/character-services-core25-pb19-public-morphsummon-native-20261112.yml' | sort >/tmp/services73-expected
+          diff -u /tmp/services73-expected /tmp/services73-actual
+
+          # The former standalone player-bot-level-brackets module is now integrated into PB19.
+          test -f "$modules/mod-playerbots/src/Bot/RandomBotLevelMgr.cpp"
+          grep -Fq 'Ported with permission from Dustin Hendrickson' "$modules/mod-playerbots/src/Bot/RandomBotLevelMgr.cpp"
+          grep -Fqx 'Playerbots.LevelBrackets.Enabled = 0' "$modules/mod-playerbots/conf/playerbots.conf.dist"
+          test ! -e "$modules/mod-player-bot-level-brackets"
+
+          # Public MorphSummon is included here as a compatibility reference only.
+          # Its C++ and distributed config are byte-identical to the public baseline
+          # that existed when CosmicCuddle's 21 Sep 2026 patch notes were written.
+          test "$(git -C "$modules/mod-morphsummon" rev-parse HEAD)" = b1fc9db72b5acbdd30639a131fe84da53c82d8f2
+          test "$(git -C "$modules/mod-morphsummon" hash-object src/morphsummon.cpp)" = 6c288dc4bcd9736b70c9689387e33194950c750c
+          test "$(git -C "$modules/mod-morphsummon" hash-object conf/morphsummon.conf.dist)" = 4ed2d68ae63f13ac1b1edc3cc1b0bedc34b82264
+          test "$(git -C "$modules/mod-morphsummon" hash-object data/sql/db-world/base/morphsummon.sql)" = 23a22cff1e6b86f5ed72d0fb65852df463c7ab7a
+          grep -Fq 'CreatureDisplayID' "$modules/mod-morphsummon/data/sql/db-world/base/morphsummon.sql"
+          grep -Fq 'DisplayScale' "$modules/mod-morphsummon/data/sql/db-world/base/morphsummon.sql"
+          ! grep -Fq '`scale`' "$modules/mod-morphsummon/data/sql/db-world/base/morphsummon.sql"
+          ! grep -Fq 'mechanic_immune_mask' "$modules/mod-morphsummon/data/sql/db-world/base/morphsummon.sql"
+
+          # Owner behavior is deliberately NOT inferred from public upstream.
+          # Pricing, Darkmoon-only availability and exact local C++ remain preservation requirements.
+
+          # Keep all currently distributed positive/paid F14 switches disabled.
+          ip="$modules/mod-individual-progression"
+          pb="$modules/mod-playerbots"
+          naxx="$modules/mod-naxxramas-core"
+          grep -Fqx 'IndividualProgression.PaidExpansion.Enable = 0' "$ip/conf/individualProgression.conf.dist"
+          for flag in PreserveVerifiedRandomBotStageOnLogin ProtectVerifiedRandomBotGroupFloor ForceVerifiedRandomBotTbcFloorOnLogin ExperimentalRndbotPlayerVisibility ExperimentalAttackLifecycleRegistry ProtectVerifiedRandomBotStageFloor; do
+            grep -Fqx "IndividualProgression.F14.$flag = 0" "$ip/conf/individualProgression.conf.dist"
+          done
+          grep -Fqx 'Playerbots.F14TrackNewRandomBotBirth = 0' "$pb/conf/playerbots.conf.dist"
+          grep -Fqx 'NaxxramasCore.MasterLootQuestGive.Enabled = 0' "$naxx/conf/mod_naxxramas_core.conf.dist"
+          grep -Fqx 'NaxxramasCore.WarlockRitual.SecondStagePilot.Enabled = 0' "$naxx/conf/mod_naxxramas_core.conf.dist"
+
+          echo 'PASS exact expanded tuple with public MorphSummon compatibility reference; owner custom MorphSummon remains un-replaced'
+
+      - name: Run current F14/WPS source regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B acore/tests/cosmic_f14_restack/test_core24_upstream_restack_source.py
+          python3 -B acore/modules/mod-playerbots/tests/test_f14_upstream_population_restack_source.py -v
+          # Core23's token-bound CREATE test intentionally contains an exact historical
+          # changed-path guard. Replay it on immutable Core23; Core25 itself is
+          # validated by the current-restack semantic contract above.
+          git -C acore worktree add --detach /tmp/core23 dbb1dd5150f330d88522a10b85e93546fff72bad
+          python3 /tmp/core23/tests/cosmic_f14_token_bound_create_current/test_f14_token_bound_create_current_source.py
+          git -C acore worktree remove --force /tmp/core23
+          python3 acore/modules/mod-individual-progression/tests/test_f14_rights_refresh_performance_source.py
+          python3 - <<'PY'
+          from pathlib import Path
+          s = Path('acore/modules/mod-world-party-scaling/src/WorldPartyScaling.cpp').read_text()
+          nearby = s.split('uint32 GetNearbyGroupSize(Player* player, Creature* creature)',1)[1].split('// Mirrors KillRewarder',1)[0]
+          assert 'CONFIG_GROUP_XP_DISTANCE' in nearby
+          assert 'member->IsWithinDistInMap(creature, rewardDistance)' in nearby
+          assert 'IsAlive()' not in nearby
+          elig = s.split('bool IsCreatureEligible(Creature* creature, Player* engagingPlayer)',1)[1].split('float GetHealthRate',1)[0]
+          for rank in ('CREATURE_ELITE_ELITE','CREATURE_ELITE_RAREELITE','CREATURE_ELITE_WORLDBOSS'):
+              assert rank in elig
+          print('PASS current Core25/PB19/IP168/WPS source contracts')
+          PY
+
+      - name: Install compile dependencies on disposable runner only
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            git cmake ninja-build g++ make pkg-config file \
+            libmysqlclient-dev libssl-dev libbz2-dev libreadline-dev libncurses-dev libboost-all-dev
+
+      - name: Generate expanded combined module graph
+        run: |
+          cmake -S acore -B acore-build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DCMAKE_CXX_FLAGS="-DCOSMIC_IP_F14_REQUIRE_PLAYERBOTS -DCOSMIC_IP_F14_CORE6_ACTOR_WHO_NEGATIVE_ADAPTER_EXPERIMENT=1 -DCOSMIC_F14_NOTIFIER_PASS_LIFECYCLE_EXPERIMENT=1 -DCOSMIC_F14_CREATURE_BATCH_GUID_EVIDENCE_EXPERIMENT=1 -DCOSMIC_F14_PRE_SEND_CREATURE_OUT_EVIDENCE_EXPERIMENT=1 -DCOSMIC_IP_F14_VERIFIED_ACTOR_PUBLICATION_EXPERIMENT=1 -DCOSMIC_IP_F14_CORE6_POSITIVE_RNDBOT_VIEWER_POLICY_EXPERIMENT=1 -DCOSMIC_F14_PLAYER_CLIENT_VIEWER_QUERY_EXPERIMENT=1 -DCOSMIC_F14_WHO_GUID_QUERY_EXPERIMENT=1 -DCOSMIC_F14_CREATURE_CLIENT_VIEWER_QUERY_EXPERIMENT=1 -DCOSMIC_F14_PRE_MAP_REMOVAL_EXPERIMENT=1 -DCOSMIC_IP_F14_CURRENT_CORE_LIFECYCLE_OBSERVER_EXPERIMENT=1 -DCOSMIC_IP_F14_CURRENT_COMBAT_OWNERSHIP_EXPERIMENT=1 -DCOSMIC_F14_SESSION_REBIND_EXPERIMENT=1 -DCOSMIC_IP_F14_SESSION_REBIND_OBSERVER_EXPERIMENT=1 -DCOSMIC_IP_F14_CURRENT_PASS_IDENTITY_EXPERIMENT=1 -DCOSMIC_F14_TOKEN_BOUND_CREATURE_OUT_QUERY_EXPERIMENT=1 -DCOSMIC_F14_TOKEN_BOUND_CREATURE_CREATE_QUERY_EXPERIMENT=1 -DCOSMIC_IP_F14_TOKEN_BOUND_INITIAL_OUT_OBSERVER_EXPERIMENT=1 -DCOSMIC_IP_F14_CURRENT_RIGHTS_REFRESH_EXPERIMENT=1 -DCOSMIC_F14_SESSION_DISCONNECT_EXPERIMENT=1 -DCOSMIC_IP_F14_SESSION_DISCONNECT_OBSERVER_EXPERIMENT=1" \
+            -DMODULES=static -DSCRIPTS=static -DAPPS_BUILD=world-only -DTOOLS_BUILD=none \
+            -DUSE_COREPCH=ON -DUSE_SCRIPTPCH=ON
+
+      - name: Prove F14 macro ABI remains uniform across expanded graph
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, shlex
+          from pathlib import Path
+
+          required = (
+            'COSMIC_F14_NOTIFIER_PASS_LIFECYCLE_EXPERIMENT',
+            'COSMIC_F14_CREATURE_BATCH_GUID_EVIDENCE_EXPERIMENT',
+            'COSMIC_F14_PRE_SEND_CREATURE_OUT_EVIDENCE_EXPERIMENT',
+            'COSMIC_F14_CREATURE_CLIENT_VIEWER_QUERY_EXPERIMENT',
+            'COSMIC_F14_PLAYER_CLIENT_VIEWER_QUERY_EXPERIMENT',
+            'COSMIC_F14_WHO_GUID_QUERY_EXPERIMENT',
+            'COSMIC_F14_PRE_MAP_REMOVAL_EXPERIMENT',
+            'COSMIC_IP_F14_VERIFIED_ACTOR_PUBLICATION_EXPERIMENT',
+            'COSMIC_IP_F14_CURRENT_CORE_LIFECYCLE_OBSERVER_EXPERIMENT',
+            'COSMIC_IP_F14_CURRENT_COMBAT_OWNERSHIP_EXPERIMENT',
+            'COSMIC_F14_SESSION_REBIND_EXPERIMENT',
+            'COSMIC_IP_F14_SESSION_REBIND_OBSERVER_EXPERIMENT',
+            'COSMIC_IP_F14_CURRENT_PASS_IDENTITY_EXPERIMENT',
+            'COSMIC_F14_TOKEN_BOUND_CREATURE_OUT_QUERY_EXPERIMENT',
+            'COSMIC_F14_TOKEN_BOUND_CREATURE_CREATE_QUERY_EXPERIMENT',
+            'COSMIC_IP_F14_TOKEN_BOUND_INITIAL_OUT_OBSERVER_EXPERIMENT',
+            'COSMIC_IP_F14_CURRENT_RIGHTS_REFRESH_EXPERIMENT',
+            'COSMIC_F14_SESSION_DISCONNECT_EXPERIMENT',
+            'COSMIC_IP_F14_SESSION_DISCONNECT_OBSERVER_EXPERIMENT',
+          )
+          entries = json.loads(Path('acore-build/compile_commands.json').read_text())
+          module_names = {
+            'mod-playerbots','mod-individual-progression','mod-naxxramas-core',
+            'mod-world-party-scaling','mod-autobalance','mod-character-services',
+            'mod-1v1-arena','mod-ah-bot-plus','mod-ale','mod-dynamic-xp',
+            'mod-increment-cache-version','mod-individual-xp','mod-multibot-bridge',
+            'mod_weather_vibe','mod-dungeon-clear','mod-character-order','mod-morphsummon',
+          }
+          seen_modules = set()
+          count = 0
+          for entry in entries:
+            src = entry['file'].replace('\\', '/')
+            if not src.endswith('.cpp') or not ('/acore/src/' in src or '/acore/modules/' in src):
+              continue
+            argv = entry.get('arguments') or shlex.split(entry['command'])
+            for macro in required:
+              defs = [a for a in argv if a == '-D'+macro or a.startswith('-D'+macro+'=')]
+              assert defs == ['-D'+macro+'=1'] and '-U'+macro not in argv, (src, macro, defs)
+            for name in module_names:
+              if f'/modules/{name}/' in src:
+                seen_modules.add(name)
+            count += 1
+          missing = module_names - seen_modules
+          assert not missing, ('modules absent from compile graph', sorted(missing))
+          assert count > 0
+          print('PASS uniform F14 macro ABI across', count, 'C++ translation units and all expected modules')
+          PY
+
+      - name: Compile AND link actual Worldserver (NO SERVER START)
+        run: cmake --build acore-build --target worldserver --parallel 2
+
+      - name: Verify resulting binary without running it
+        run: |
+          test -s acore-build/src/server/apps/worldserver
+          test -x acore-build/src/server/apps/worldserver
+          file acore-build/src/server/apps/worldserver
+          echo 'PASS expanded public-reference module stack native link; no server start'
+
+      - name: Safety boundary
+        if: always()
+        run: |
+          echo 'CI-only disposable build. No SQL, DB, config, account, client, packet, host or production operation.'
+          echo 'The public module pins are compatibility references, not proof of CosmicCuddle installed SHAs.'
+          echo 'Public MorphSummon is compile-tested only; CosmicCuddle custom pricing/Darkmoon C++ and config are not substituted or deployed.'
+          echo 'Standalone Playerbot Level Brackets is deliberately excluded because PB19 contains its integrated implementation.'

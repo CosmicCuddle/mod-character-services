@@ -121,7 +121,9 @@ jobs:
           python3 /tmp/ip160/tests/test_f14_token_bound_initial_out_observer_source.py
           git -C "$ip" worktree remove --force /tmp/ip160
           python3 "$ip/tests/test_f14_combat_script_name_collision_source.py"
-          python3 "$ip/tests/test_f14_departure_storage_bridge_source.py"
+          git -C "$ip" worktree add --detach /tmp/ip155 bd4033b3bc40a142a6096f641677d972f0b06814
+          python3 /tmp/ip155/tests/test_f14_departure_storage_bridge_source.py
+          git -C "$ip" worktree remove --force /tmp/ip155
           for mode in normal ndebug; do
             extra=()
             if [ "$mode" = ndebug ]; then extra+=(-DNDEBUG); fi

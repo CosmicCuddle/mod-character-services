@@ -21,7 +21,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: CosmicCuddle/azerothcore-wotlk
-          ref: f2b9507f82444a770179d3bf6af334fbe2f6944b
+          ref: 9e30516cccfe095f95948ceb0ac1d6ca265c54e4
           path: acore
           fetch-depth: 120
           persist-credentials: false
@@ -67,7 +67,7 @@ jobs:
           oldcore=ee13e1edfdbccd56895f3adefc2b32df94ef19e9
           oldip=f259c8593f7a8ac5521bee343c40d5a2a35fd76b
           oldcs=b5c8939a414116672e9a6763067fe0fd25aa8b69
-          test "$(git -C "$core" rev-parse HEAD)" = f2b9507f82444a770179d3bf6af334fbe2f6944b
+          test "$(git -C "$core" rev-parse HEAD)" = 9e30516cccfe095f95948ceb0ac1d6ca265c54e4
           test "$(git -C "$ip" rev-parse HEAD)" = 84a19912049c8cd534688692f3a887d78a97474a
           test "$(git -C "$pb" rev-parse HEAD)" = 4b355ea3a8fd00a0b116681bf9db4c7a3eb0e051
           test "$(git -C "$naxx" rev-parse HEAD)" = 51d0611476358286505aed3ca806ea250f644f66

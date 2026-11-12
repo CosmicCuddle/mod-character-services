@@ -233,7 +233,12 @@ jobs:
           set -euo pipefail
           python3 -B acore/tests/cosmic_f14_restack/test_core24_upstream_restack_source.py
           python3 -B acore/modules/mod-playerbots/tests/test_f14_upstream_population_restack_source.py -v
-          python3 acore/tests/cosmic_f14_token_bound_create_current/test_f14_token_bound_create_current_source.py
+          # Core23's token-bound CREATE test intentionally contains an exact historical
+          # changed-path guard. Replay it on immutable Core23; Core25 itself is
+          # validated by the current-restack semantic contract above.
+          git -C acore worktree add --detach /tmp/core23 dbb1dd5150f330d88522a10b85e93546fff72bad
+          python3 /tmp/core23/tests/cosmic_f14_token_bound_create_current/test_f14_token_bound_create_current_source.py
+          git -C acore worktree remove --force /tmp/core23
           python3 acore/modules/mod-individual-progression/tests/test_f14_rights_refresh_performance_source.py
           python3 - <<'PY'
           from pathlib import Path

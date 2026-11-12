@@ -1,0 +1,222 @@
+name: Character Services Core25 SQL migration rehearsal
+
+on:
+  push:
+    branches:
+      - ci/cs01-core25-sql-rehearsal-20261112
+    paths:
+      - '.github/workflows/character-services-core25-sql-rehearsal-20261112.yml'
+  pull_request:
+    branches:
+      - ci/cs01-core25-pb19-ip168-expanded-stack-native-20261112
+    paths:
+      - '.github/workflows/character-services-core25-sql-rehearsal-20261112.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  sql-rehearsal:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout exact Core23 pre-restack baseline
+        uses: actions/checkout@v4
+        with:
+          repository: CosmicCuddle/azerothcore-wotlk
+          ref: dbb1dd5150f330d88522a10b85e93546fff72bad
+          path: core23
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Checkout exact Core25 runtime restack
+        uses: actions/checkout@v4
+        with:
+          repository: CosmicCuddle/azerothcore-wotlk
+          ref: 395b68ee4ce425826c2a79c0ddf3ade3c67c8160
+          path: core25
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify immutable source tuple and exact restack updater set
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C core23 rev-parse HEAD)" = dbb1dd5150f330d88522a10b85e93546fff72bad
+          test "$(git -C core25 rev-parse HEAD)" = 395b68ee4ce425826c2a79c0ddf3ade3c67c8160
+
+          world_updates=(
+            2026_10_23_00.sql
+            2026_10_24_00.sql
+            2026_10_24_01.sql
+            2026_10_24_02.sql
+            2026_10_24_03.sql
+            2026_10_24_04.sql
+            2026_10_24_05.sql
+            2026_10_24_06.sql
+            2026_10_24_07.sql
+            2026_10_25_00.sql
+            2026_10_25_01.sql
+            2026_10_25_02.sql
+            2026_10_25_03.sql
+            2026_10_26_00.sql
+            2026_10_27_00.sql
+            2026_10_27_01.sql
+            2026_10_27_02.sql
+            2026_10_27_03.sql
+            2026_10_27_04.sql
+            2026_10_28_00.sql
+            2026_10_28_01.sql
+            2026_10_31_00.sql
+            2026_10_31_01.sql
+          )
+          test "${#world_updates[@]}" -eq 23
+          for file in "${world_updates[@]}"; do
+            test -f "core25/data/sql/updates/db_world/$file"
+          done
+          test -f core25/data/sql/updates/db_characters/2026_10_31_00.sql
+          grep -Fq 'DROP TABLE IF EXISTS `spell_proc_event`' core25/data/sql/updates/db_world/2026_10_28_00.sql
+          grep -Fq 'DROP COLUMN `locale_koKR`' core25/data/sql/updates/db_world/2026_10_31_00.sql
+          grep -Fq 'SET `cp`.`slot` = 100' core25/data/sql/updates/db_characters/2026_10_31_00.sql
+
+      - name: Install disposable MariaDB only
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends mariadb-server mariadb-client
+          sudo systemctl start mariadb
+          sudo mariadb -e 'SELECT VERSION();'
+
+      - name: Assemble exact Core23 disposable baseline databases
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo mariadb -e "DROP DATABASE IF EXISTS acore_world_rehearsal; CREATE DATABASE acore_world_rehearsal CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+          sudo mariadb -e "DROP DATABASE IF EXISTS acore_characters_rehearsal; CREATE DATABASE acore_characters_rehearsal CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
+          while IFS= read -r file; do
+            echo "Importing world base: $file"
+            sudo mariadb acore_world_rehearsal < "$file"
+          done < <(find core23/data/sql/base/db_world -maxdepth 1 -type f -name '*.sql' | sort)
+
+          sudo mariadb acore_characters_rehearsal < core23/data/sql/base/db_characters/character_pet.sql
+
+          sudo mariadb acore_world_rehearsal <<'SQL'
+          DELETE FROM acore_string WHERE entry = 990001;
+          INSERT INTO acore_string
+            (entry, content_default, locale_koKR, locale_frFR, locale_deDE, locale_zhCN, locale_zhTW, locale_esES, locale_esMX, locale_ruRU)
+          VALUES
+            (990001, 'fixture-default', '', 'fixture-fr-column', 'fixture-de-column', '', '', '', '', '');
+          SQL
+
+          sudo mariadb acore_characters_rehearsal <<'SQL'
+          DELETE FROM character_pet WHERE owner IN (990001, 990002, 990003);
+          INSERT INTO character_pet (id, entry, owner, PetType, level, slot, savetime) VALUES
+            (990011, 1, 990001, 0, 60, 0, 100),
+            (990012, 1, 990001, 0, 60, 0, 200),
+            (990013, 1, 990001, 0, 60, 0, 200),
+            (990021, 1, 990002, 0, 60, 0, 150),
+            (990031, 1, 990003, 1, 60, 0, 100),
+            (990032, 1, 990003, 1, 60, 0, 200);
+          SQL
+
+          test "$(sudo mariadb -N -B acore_world_rehearsal -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='acore_world_rehearsal' AND table_name='spell_proc_event';")" = 1
+          test "$(sudo mariadb -N -B acore_world_rehearsal -e "SELECT locale_frFR FROM acore_string WHERE entry=990001;")" = fixture-fr-column
+          test "$(sudo mariadb -N -B acore_characters_rehearsal -e "SELECT COUNT(*) FROM character_pet WHERE owner IN (990001,990002,990003);")" = 6
+
+      - name: Apply exact ordered Core23 to Core25 world updater chain
+        shell: bash
+        run: |
+          set -euo pipefail
+          before_locale="$(sudo mariadb -N -B acore_world_rehearsal -e "SELECT locale_frFR FROM acore_string WHERE entry=990001;")"
+          test "$before_locale" = fixture-fr-column
+
+          first_updates=(
+            2026_10_23_00.sql
+            2026_10_24_00.sql
+            2026_10_24_01.sql
+            2026_10_24_02.sql
+            2026_10_24_03.sql
+            2026_10_24_04.sql
+            2026_10_24_05.sql
+            2026_10_24_06.sql
+            2026_10_24_07.sql
+            2026_10_25_00.sql
+          )
+          for file in "${first_updates[@]}"; do
+            echo "Applying world update: $file"
+            sudo mariadb acore_world_rehearsal < "core25/data/sql/updates/db_world/$file"
+          done
+
+          # Simulate an already-populated new-format row. The migration contract says
+          # a non-empty acore_string_locale value wins over the legacy column.
+          sudo mariadb acore_world_rehearsal <<'SQL'
+          DELETE FROM acore_string_locale WHERE entry=990001 AND locale='frFR';
+          INSERT INTO acore_string_locale (entry, locale, content)
+          VALUES (990001, 'frFR', 'fixture-fr-table');
+          SQL
+
+          remaining_updates=(
+            2026_10_25_01.sql
+            2026_10_25_02.sql
+            2026_10_25_03.sql
+            2026_10_26_00.sql
+            2026_10_27_00.sql
+            2026_10_27_01.sql
+            2026_10_27_02.sql
+            2026_10_27_03.sql
+            2026_10_27_04.sql
+            2026_10_28_00.sql
+            2026_10_28_01.sql
+            2026_10_31_00.sql
+            2026_10_31_01.sql
+          )
+          for file in "${remaining_updates[@]}"; do
+            echo "Applying world update: $file"
+            sudo mariadb acore_world_rehearsal < "core25/data/sql/updates/db_world/$file"
+          done
+
+      - name: Apply exact Core25 character updater to disposable fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          before_count="$(sudo mariadb -N -B acore_characters_rehearsal -e "SELECT COUNT(*) FROM character_pet WHERE owner IN (990001,990002,990003);")"
+          test "$before_count" = 6
+          sudo mariadb acore_characters_rehearsal < core25/data/sql/updates/db_characters/2026_10_31_00.sql
+
+      - name: Assert destructive-schema and data-preservation postconditions
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # spell_proc_event must be gone after 2026_10_28_00.
+          test "$(sudo mariadb -N -B acore_world_rehearsal -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='acore_world_rehearsal' AND table_name='spell_proc_event';")" = 0
+
+          # The eight legacy locale columns must be gone and the new table must exist.
+          test "$(sudo mariadb -N -B acore_world_rehearsal -e "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='acore_world_rehearsal' AND table_name='acore_string' AND column_name LIKE 'locale\\_%';")" = 0
+          test "$(sudo mariadb -N -B acore_world_rehearsal -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='acore_world_rehearsal' AND table_name='acore_string_locale';")" = 1
+
+          # Existing new-format text wins; untouched legacy text migrates; default survives.
+          test "$(sudo mariadb -N -B acore_world_rehearsal -e "SELECT content FROM acore_string_locale WHERE entry=990001 AND locale='frFR';")" = fixture-fr-table
+          test "$(sudo mariadb -N -B acore_world_rehearsal -e "SELECT content FROM acore_string_locale WHERE entry=990001 AND locale='deDE';")" = fixture-de-column
+          test "$(sudo mariadb -N -B acore_world_rehearsal -e "SELECT content_default FROM acore_string WHERE entry=990001;")" = fixture-default
+
+          # Pet migration keeps newest (savetime, then id) current and moves only older
+          # PetType=0 duplicates to slot 100. It must not delete rows or touch PetType=1.
+          test "$(sudo mariadb -N -B acore_characters_rehearsal -e "SELECT COUNT(*) FROM character_pet WHERE owner IN (990001,990002,990003);")" = 6
+          test "$(sudo mariadb -N -B acore_characters_rehearsal -e "SELECT slot FROM character_pet WHERE id=990011;")" = 100
+          test "$(sudo mariadb -N -B acore_characters_rehearsal -e "SELECT slot FROM character_pet WHERE id=990012;")" = 100
+          test "$(sudo mariadb -N -B acore_characters_rehearsal -e "SELECT slot FROM character_pet WHERE id=990013;")" = 0
+          test "$(sudo mariadb -N -B acore_characters_rehearsal -e "SELECT slot FROM character_pet WHERE id=990021;")" = 0
+          test "$(sudo mariadb -N -B acore_characters_rehearsal -e "SELECT COUNT(*) FROM character_pet WHERE owner=990003 AND PetType=1 AND slot=0;")" = 2
+
+          echo 'PASS disposable Core23 -> Core25 SQL chain: locale migration, spell_proc_event removal and character_pet normalization behaved as specified'
+
+      - name: Safety boundary
+        if: always()
+        run: |
+          echo 'Disposable GitHub runner only.'
+          echo 'No owner database, host, config, account, client, server start, deployment or production migration.'
+          echo 'This proves SQL mechanics on Core23 base fixtures only; owner-local DB state still requires inventory, restorable backups and a separate copied-database rehearsal.'

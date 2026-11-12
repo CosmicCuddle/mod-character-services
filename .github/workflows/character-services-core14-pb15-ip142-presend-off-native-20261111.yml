@@ -1,14 +1,14 @@
-name: Core14 F14 hook compilation ON, positive runtime policy OFF, PB15 IP142
+name: Core15 initial OUT guard compile ON, F14 runtime OFF, PB15 IP142
 
 on:
   pull_request:
     branches:
-      - ci/cs01-core9-pb15-ip142-native-off-20261110
+      - ci/cs01-core14-pb15-ip142-presend-native-off-20261111
     paths:
       - '.github/workflows/character-services-core14-pb15-ip142-presend-off-native-20261111.yml'
   push:
     branches:
-      - ci/cs01-core14-pb15-ip142-presend-native-off-20261111
+      - ci/cs01-core15-pb15-ip142-initial-out-native-20261112
     paths:
       - '.github/workflows/character-services-core14-pb15-ip142-presend-off-native-20261111.yml'
 
@@ -17,17 +17,17 @@ permissions:
 
 jobs:
   pinned-paid-vendor-worldserver-link:
-    name: Core14 hook compile ON, F14 runtime OFF, five-owner Worldserver link
+    name: Core15 initial OUT guard, five-owner Worldserver link, runtime OFF
     runs-on: ubuntu-24.04
     timeout-minutes: 170
     steps:
-      - name: Checkout owner Core fork DRAFT #4 (paid guard intact; F14 client query compile-time OFF)
+      - name: Checkout exact Core DRAFT #15 (paid guard intact; F14 runtime OFF)
         uses: actions/checkout@v4
         with:
           repository: CosmicCuddle/azerothcore-wotlk
-          ref: 6dd1589b9067b02f88bb4e04de33818e36bc87c3
+          ref: ee13e1edfdbccd56895f3adefc2b32df94ef19e9
           path: acore
-          fetch-depth: 96  # Core7 test ancestor is 55 commits behind Core14; 50 truncated it.
+          fetch-depth: 96  # Includes Core7 history plus Core15 child commits.
           persist-credentials: false
       - name: Checkout owner PB15 pending-login child (OFF) plus PB14/PB13/PB12/PB11 history
         uses: actions/checkout@v4
@@ -64,20 +64,20 @@ jobs:
         run: |
           set -euo pipefail
           cs=acore/modules/mod-character-services
-          parent=d26a2474094f0b38f63010b6892d68bf164800d9
+          parent=9f3bbcbba45f6b81018176eec48e5bc78650770a
           git -C "$cs" merge-base --is-ancestor "$parent" HEAD
           git -C "$cs" diff --check "$parent" HEAD
           git -C "$cs" diff --name-only "$parent" HEAD > /tmp/owner-ip120-compat-files
           test "$(wc -l < /tmp/owner-ip120-compat-files)" = 1
           grep -Fxq '.github/workflows/character-services-core14-pb15-ip142-presend-off-native-20261111.yml' /tmp/owner-ip120-compat-files
           test -z "$(git -C "$cs" diff --name-only "$parent" HEAD -- src conf data sql scripts)"
-          echo 'PASS: exactly one CI workflow, no runtime/SQL/config/code changes; Core6 is pinned in external source checkout only'
+          echo 'PASS: exactly one CI workflow, no runtime/SQL/config/code changes; Core15 pinned externally'
       - name: Assert all exact pins, owner snapshots, disabled defaults and IP API
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git -C acore rev-parse HEAD)" = 6dd1589b9067b02f88bb4e04de33818e36bc87c3
-          # Core7 is a 55-commit ancestor of this Core14 pin. The inherited
+          test "$(git -C acore rev-parse HEAD)" = ee13e1edfdbccd56895f3adefc2b32df94ef19e9
+          # Core7 is an ancestor of this Core15 pin. The inherited
           # Core8 source tests use git show on that exact historical commit.
           git -C acore cat-file -e '891e3a622901a525e325b597e52edf2271a98a41^{commit}'
           git -C acore merge-base --is-ancestor 891e3a622901a525e325b597e52edf2271a98a41 HEAD
@@ -232,7 +232,7 @@ jobs:
           ip=$core/modules/mod-individual-progression
           target=src/server/game/Entities/Player/PlayerSettings.cpp
           player=src/server/game/Entities/Player/Player.h
-          test "$(git -C "$core" rev-parse HEAD)" = 6dd1589b9067b02f88bb4e04de33818e36bc87c3
+          test "$(git -C "$core" rev-parse HEAD)" = ee13e1edfdbccd56895f3adefc2b32df94ef19e9
           test "$(git -C "$core" rev-parse "HEAD:$target")" = 2bcac6abe4a8960a62241a582d86ba28e46b2719
           test "$(git -C "$core" rev-parse "HEAD:$player")" = 81920131574af4a00e6d0f213c428b25750d9aa0
           test -z "$(git -C "$core" status --porcelain)"
@@ -300,7 +300,7 @@ jobs:
         run: |
           set -euo pipefail
           core=acore
-          test "$(git -C "$core" rev-parse HEAD)" = 6dd1589b9067b02f88bb4e04de33818e36bc87c3
+          test "$(git -C "$core" rev-parse HEAD)" = ee13e1edfdbccd56895f3adefc2b32df94ef19e9
           grep -Fq 'bool ShouldF14SuppressCreatureForViewer(' "$core/src/server/game/Scripting/ScriptMgr.h"
           grep -Fq 'OnF14ShouldSuppressCreatureForViewer(' "$core/src/server/game/Scripting/ScriptDefines/WorldObjectScript.h"
           grep -Fq 'CALL_ENABLED_BOOLEAN_HOOKS_WITH_DEFAULT_FALSE(' "$core/src/server/game/Scripting/ScriptDefines/WorldObjectScript.cpp"
@@ -322,7 +322,7 @@ jobs:
         run: |
           set -euo pipefail
           core=acore
-          test "$(git -C "$core" rev-parse HEAD)" = 6dd1589b9067b02f88bb4e04de33818e36bc87c3
+          test "$(git -C "$core" rev-parse HEAD)" = ee13e1edfdbccd56895f3adefc2b32df94ef19e9
           grep -Fq 'COSMIC_F14_WHO_GUID_QUERY_EXPERIMENT >= 1' "$core/src/server/game/Handlers/MiscHandler.cpp"
           grep -Fq 'ShouldF14ExcludeWhoEntryForViewer(_player, target.GetGuid(), race)' "$core/src/server/game/Handlers/MiscHandler.cpp"
           grep -Fq 'WORLDOBJECTHOOK_ON_F14_WHO_GUID_EXCLUSION_QUERY' "$core/src/server/game/Scripting/ScriptDefines/WorldObjectScript.h"
@@ -337,7 +337,7 @@ jobs:
         run: |
           set -euo pipefail
           core=acore
-          test "$(git -C "$core" rev-parse HEAD)" = 6dd1589b9067b02f88bb4e04de33818e36bc87c3
+          test "$(git -C "$core" rev-parse HEAD)" = ee13e1edfdbccd56895f3adefc2b32df94ef19e9
           grep -Fq 'COSMIC_F14_PLAYER_CLIENT_VIEWER_QUERY_EXPERIMENT >= 1' "$core/src/server/game/Entities/Player/PlayerUpdates.cpp"
           grep -Fq 'ShouldF14SuppressPlayerForViewer(viewer, actor)' "$core/src/server/game/Entities/Player/PlayerUpdates.cpp"
           grep -Fq 'WORLDOBJECTHOOK_ON_F14_VIEWER_PLAYER_SUPPRESSION_QUERY' "$core/src/server/game/Scripting/ScriptDefines/WorldObjectScript.h"
@@ -441,7 +441,7 @@ jobs:
           ip=acore/modules/mod-individual-progression
           core=acore
           test "$(git -C "$ip" rev-parse HEAD)" = f259c8593f7a8ac5521bee343c40d5a2a35fd76b
-          test "$(git -C "$core" rev-parse HEAD)" = 6dd1589b9067b02f88bb4e04de33818e36bc87c3
+          test "$(git -C "$core" rev-parse HEAD)" = ee13e1edfdbccd56895f3adefc2b32df94ef19e9
           grep -Fq 'WORLDOBJECTHOOK_ON_F14_VIEWER_PLAYER_SUPPRESSION_QUERY' "$core/src/server/game/Scripting/ScriptDefines/WorldObjectScript.h"
           grep -Fq 'WORLDOBJECTHOOK_ON_F14_WHO_GUID_EXCLUSION_QUERY' "$core/src/server/game/Scripting/ScriptDefines/WorldObjectScript.h"
           grep -Fq 'class IndividualProgressionF14Core6NegativeActorWhoAdapter final : public WorldObjectScript' "$ip/src/IndividualProgressionPlayer.cpp"
@@ -784,13 +784,35 @@ jobs:
           print("NO IP E1 registered consumer / validated current viewer epoch / prior hidden debt / client ACK")
           PY
           python3 -B -m unittest discover -s "acore/tests/cosmic_f14_pass_source" -p test_core14_true_f14_out_presend_source.py -v
+      - name: Verify exact Core15 child scope and initial OUT admission regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          core=acore
+          parent=6dd1589b9067b02f88bb4e04de33818e36bc87c3
+          git -C "$core" merge-base --is-ancestor "$parent" HEAD
+          git -C "$core" diff --check "$parent" HEAD
+          git -C "$core" diff --name-only "$parent" HEAD | sort >/tmp/core15-actual
+          printf '%s\n' '.github/workflows/core14-f14-initial-out-admission-20261112.yml' 'src/server/game/Entities/Object/Updates/F14InitialOutPassAdmission.h' 'src/server/game/Entities/Object/Updates/UpdateData.cpp' 'src/server/game/Entities/Object/Updates/UpdateData.h' 'src/server/game/Entities/Player/PlayerUpdates.cpp' 'src/server/game/Grids/Notifiers/GridNotifiers.cpp' 'tests/cosmic_f14_pass_source/f14_initial_out_pass_admission_native.cpp' 'tests/cosmic_f14_pass_source/test_core14_initial_out_admission_source.py' 'tests/cosmic_f14_pass_source/test_core14_true_f14_out_presend_source.py' | sort >/tmp/core15-expected
+          diff -u /tmp/core15-expected /tmp/core15-actual
+          python3 -B -m unittest discover -s "$core/tests/cosmic_f14_pass_source" -p test_core14_initial_out_admission_source.py -v
+          for cxx in g++ clang++; do
+            for std in c++17 c++20; do
+              for mode in normal ndebug; do
+                flags=()
+                if [[ "$mode" == ndebug ]]; then flags=(-DNDEBUG); fi
+                "$cxx" -std="$std" -Wall -Wextra -Werror -pedantic -O2 "${flags[@]}" -I"$core/src/server/game/Entities/Object/Updates" "$core/tests/cosmic_f14_pass_source/f14_initial_out_pass_admission_native.cpp" -o /tmp/core15-admission
+                /tmp/core15-admission
+              done
+            done
+          done
       - name: Compile AND link actual combined Worldserver (do not execute)
         run: cmake --build acore-build --target worldserver --parallel 2
       - name: Verify finished binary without launching it
         run: |
           test -s acore-build/src/server/apps/worldserver
           test -x acore-build/src/server/apps/worldserver
-          echo 'PASS: Core9/PB15/IP142/Naxx292/Services Worldserver linked with exact creature GUID packet sidecar + raw-stage cache-only viewer, runtime OFF; NO hide/client ACK'
+          echo 'PASS: Core15/PB15/IP142/Naxx292/Services Worldserver linked with initial OUT guard, runtime OFF; NO hide/client ACK'
           echo 'No owner host, accounts, DB, NPC, gold, config, enablement or live archive touched'
       - name: Safety and confidence boundary
         if: always()

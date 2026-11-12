@@ -37,7 +37,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: CosmicCuddle/mod-individual-progression
-          ref: cc5f26a10347ba317cf619ea088e4a859842fa30
+          ref: 04bbbb374eac25779acc1a79b75c28cdc28f2d4b
           path: acore/modules/mod-individual-progression
           fetch-depth: 0
           persist-credentials: false
@@ -67,7 +67,7 @@ jobs:
           ip156=8eeede539f64bc07589a940540060ffe3b04c740
           services56=9adb731d2310c92078686d05948e5fba15916dac
           test "$(git -C "$core" rev-parse HEAD)" = 9e30516cccfe095f95948ceb0ac1d6ca265c54e4
-          test "$(git -C "$ip" rev-parse HEAD)" = cc5f26a10347ba317cf619ea088e4a859842fa30
+          test "$(git -C "$ip" rev-parse HEAD)" = 04bbbb374eac25779acc1a79b75c28cdc28f2d4b
           test "$(git -C "$pb" rev-parse HEAD)" = 4b355ea3a8fd00a0b116681bf9db4c7a3eb0e051
           test "$(git -C "$naxx" rev-parse HEAD)" = 51d0611476358286505aed3ca806ea250f644f66
           test "$(git -C "$cs" rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"

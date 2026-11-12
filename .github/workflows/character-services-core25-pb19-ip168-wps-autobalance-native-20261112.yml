@@ -101,11 +101,16 @@ jobs:
           git -C "$core" diff --check "$core_upstream" HEAD
 
           test "$(git -C "$pb" rev-parse HEAD)" = "$pb_head"
-          test "$(git -C "$pb" rev-parse HEAD^)" = "$pb_runtime"
           test "$(git -C "$pb" rev-parse "$pb_runtime^1")" = "$pb_upstream"
           test "$(git -C "$pb" rev-parse "$pb_runtime^2")" = "$pb15"
+          git -C "$pb" merge-base --is-ancestor "$pb_runtime" HEAD
           git -C "$pb" merge-base --is-ancestor "$pb_upstream" HEAD
           git -C "$pb" merge-base --is-ancestor "$pb15" HEAD
+          git -C "$pb" diff --name-only "$pb_runtime" HEAD | sort >/tmp/pb19-docs-actual
+          printf '%s\n' \
+            'docs/CUSTOM_MODIFICATIONS_REGISTER.md' \
+            'docs/PB_UPSTREAM_RESTACK_CANDIDATE_2026-11-12.md' | sort >/tmp/pb19-docs-expected
+          diff -u /tmp/pb19-docs-expected /tmp/pb19-docs-actual
           git -C "$pb" diff --check "$pb_upstream" HEAD
 
           test "$(git -C "$ip" rev-parse HEAD)" = "$ip168"

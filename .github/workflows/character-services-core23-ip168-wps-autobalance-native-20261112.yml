@@ -9,7 +9,7 @@ on:
     branches:
       - ci/cs01-core21-ip168-wps-autobalance-native-20261112
     paths:
-      - '.github/workflows/character-services-core21-ip168-wps-autobalance-native-20261112.yml'
+      - '.github/workflows/character-services-core23-ip168-wps-autobalance-native-20261112.yml'
 permissions:
   contents: read
 jobs:

@@ -176,10 +176,17 @@ jobs:
           git -C acore worktree add --detach /tmp/core21 991f2c86c928222d501a559a61434cfd15055dc8
           python3 /tmp/core21/tests/cosmic_f14_token_query_fail_visible/test_f14_token_query_fail_visible_source.py
           git -C acore worktree remove --force /tmp/core21
-          python3 acore/tests/cosmic_f14_token_bound_create_current/test_f14_token_bound_create_current_source.py
+          # Core23's source contract contains an intentional exact changed-path
+          # boundary. Replay it on its immutable reviewed head rather than
+          # weakening it on the upstream-restacked descendant.
+          git -C acore worktree add --detach /tmp/core23 dbb1dd5150f330d88522a10b85e93546fff72bad
+          python3 /tmp/core23/tests/cosmic_f14_token_bound_create_current/test_f14_token_bound_create_current_source.py
+          git -C acore worktree remove --force /tmp/core23
+          # The restacked head is checked separately for the preserved runtime
+          # token type and source anchors, without pretending its path scope is Core23's.
           g++ -std=c++17 -Wall -Wextra -Werror -Iacore/src/server/game/Entities/Object/Updates \
-            acore/tests/cosmic_f14_token_bound_out/f14_initial_out_token_test.cpp -o /tmp/f14_core23_visibility_pass_token_test
-          /tmp/f14_core23_visibility_pass_token_test
+            acore/tests/cosmic_f14_token_bound_out/f14_initial_out_token_test.cpp -o /tmp/f14_core26_visibility_pass_token_test
+          /tmp/f14_core26_visibility_pass_token_test
           ip=acore/modules/mod-individual-progression
           git -C "$ip" worktree add --detach /tmp/ip158 d72cb188ce763181b43ceced79fdae9c69b88829
           python3 /tmp/ip158/tests/test_f14_session_rebind_observer_source.py

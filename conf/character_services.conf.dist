@@ -68,6 +68,17 @@ CharacterServices.ProgressionTier.MaxApplicableTier = 0
 CharacterServices.ProgressionTier.RequireAccountUnlock = 1
 
 #
+#    CharacterServices.ExpansionUnlock.Enable
+#        Description: Enables the paid-expansion passage integration with
+#                    Individual Progression. While this is enabled, the legacy
+#                    generic progression-tier shop must never bypass a required
+#                    TBC/WotLK purchase. The actual Vezrath purchase UI remains
+#                    disabled until the matching durable IP API is composed.
+#        Default:     0 - Disabled
+#
+CharacterServices.ExpansionUnlock.Enable = 0
+
+#
 #    CharacterServices.DynamicCost.Enable
 #        Description: Enables scaling cost based on the player's level: (player level / 80) * cost
 #                    NOTE: this applies ONLY to the name/appearance/race/faction services

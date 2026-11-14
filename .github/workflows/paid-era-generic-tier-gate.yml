@@ -1,0 +1,35 @@
+name: Paid-era generic tier gate
+
+on:
+  pull_request:
+    paths:
+      - 'src/CharacterServices.cpp'
+      - 'src/CharacterServicesGatePolicy.h'
+      - 'conf/character_services.conf.dist'
+      - 'tests/character_services_gate_policy.cpp'
+      - 'tests/test_paid_era_generic_tier_gate.py'
+      - '.github/workflows/paid-era-generic-tier-gate.yml'
+  push:
+    paths:
+      - 'src/CharacterServices.cpp'
+      - 'src/CharacterServicesGatePolicy.h'
+      - 'conf/character_services.conf.dist'
+      - 'tests/character_services_gate_policy.cpp'
+      - 'tests/test_paid_era_generic_tier_gate.py'
+      - '.github/workflows/paid-era-generic-tier-gate.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  policy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run pure gate policy test
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror tests/character_services_gate_policy.cpp -o /tmp/cs_gate_test
+          /tmp/cs_gate_test
+      - name: Run source integration contracts
+        run: python3 -B -m unittest tests.test_paid_era_generic_tier_gate

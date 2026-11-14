@@ -8,10 +8,36 @@
 #include "Chat.h"
 #include "ScriptedGossip.h"
 #include "IndividualProgression.h"
+#include "CharacterServicesGatePolicy.h"
 
 class CharacterServices : public CreatureScript
 {
   public:
+    static uint8 AccountProgressionForTierService(uint32 accountId)
+    {
+#if defined(COSMIC_IP_PAID_EXPANSION_API_VERSION) && COSMIC_IP_PAID_EXPANSION_API_VERSION >= 1
+      return sIndividualProgression->GetAccountEffectiveProgression(accountId);
+#else
+      return sIndividualProgression->GetAccountProgression(accountId);
+#endif
+    }
+
+    static bool CanOfferProgressionTier(Player* player, uint8 nextTier)
+    {
+#if defined(COSMIC_IP_PAID_EXPANSION_API_VERSION) && COSMIC_IP_PAID_EXPANSION_API_VERSION >= 1
+      bool const ipPaidActive = sIndividualProgression->IsPaidExpansionActive();
+      uint8 const effectiveCeiling = ipPaidActive
+        ? sIndividualProgression->GetMaxServiceGrantableStage(player) : 0u;
+      return CharacterServicesGatePolicy::CanOfferGenericTier(
+          sConfigMgr->GetOption<bool>("CharacterServices.ExpansionUnlock.Enable", false),
+          ipPaidActive, nextTier, effectiveCeiling);
+#else
+      (void)player;
+      (void)nextTier;
+      return !sConfigMgr->GetOption<bool>("CharacterServices.ExpansionUnlock.Enable", false);
+#endif
+    }
+
     CharacterServices() : CreatureScript("character_services") { }
 
     bool OnGossipHello(Player* player, Creature* creature) override
@@ -37,7 +63,7 @@ class CharacterServices : public CreatureScript
         AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1, "|TInterface/Icons/inv_misc_grouplooking:50:50|tChange My Race", GOSSIP_SENDER_MAIN, 3, "Confirm Race Change.", GetServiceCost(player, 3), false);
       if (sConfigMgr->GetOption<bool>("CharacterServices.FactionChange.Enable", false))
         AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1, "|TInterface/Icons/inv_bannerpvp_03:50:50|tChange My Faction", GOSSIP_SENDER_MAIN, 4, "Confirm Faction Change.", GetServiceCost(player, 4), false);
-      
+
       // Add progression tier purchase option if enabled
       if (sConfigMgr->GetOption<bool>("CharacterServices.ProgressionTier.Enable", false))
       {
@@ -49,7 +75,7 @@ class CharacterServices : public CreatureScript
         // highest achieved tier. When false, any character may buy up to the top tier
         // without another character having unlocked it first.
         uint8 accountMaxTier = requireAccountUnlock
-          ? sIndividualProgression->GetAccountProgression(player->GetSession()->GetAccountId())
+          ? AccountProgressionForTierService(player->GetSession()->GetAccountId())
           : PROGRESSION_WOTLK_TIER_5;
 
         // If MaxApplicableTier is set (non-zero), use it as a cap on the account's max tier
@@ -59,7 +85,8 @@ class CharacterServices : public CreatureScript
         uint8 nextTier = GetNextProgressionTier(currentTier);
 
         // Only offer if the account has unlocked the next tier and the player is not at max progression
-        if (currentTier < PROGRESSION_WOTLK_TIER_5 && nextTier <= accountMaxTier)
+        if (currentTier < PROGRESSION_WOTLK_TIER_5 && nextTier <= accountMaxTier &&
+            CanOfferProgressionTier(player, nextTier))
         {
           std::string nextTierName = GetProgressionTierName(nextTier);
           std::string tierIcon = GetTierIcon(nextTier);
@@ -85,7 +112,7 @@ class CharacterServices : public CreatureScript
     {
       if (!player || !player->GetSession())
           return false;
-          
+
       ClearGossipMenuFor(player);
 
       // Handle progression tier purchases (action IDs 100+)
@@ -220,6 +247,14 @@ class CharacterServices : public CreatureScript
           ChatHandler(player->GetSession()).PSendSysMessage("This progression tier is not available for purchase.");
           return false;
         }
+      }
+
+      // Generic tier purchases must never bypass paid expansion passage.
+      if (!CanOfferProgressionTier(player, newTier))
+      {
+        ChatHandler(player->GetSession()).PSendSysMessage(
+            "You must finish the current era and purchase the next expansion from Chronomancer Vezrath.");
+        return false;
       }
 
       // Only the immediate next tier may be purchased. This single check also

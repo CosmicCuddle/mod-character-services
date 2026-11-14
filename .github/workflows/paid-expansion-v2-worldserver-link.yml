@@ -1,0 +1,104 @@
+name: Paid expansion API v2 pinned Worldserver link
+
+on:
+  push:
+    branches: [feature/paid-expansion-v2-vendor-20261114]
+    paths:
+      - 'src/CharacterServices.cpp'
+      - 'src/CharacterServicesGatePolicy.h'
+      - 'src/CharacterServicesMoneyPolicy.h'
+      - 'conf/character_services.conf.dist'
+      - '.github/workflows/paid-expansion-v2-worldserver-link.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-linked-worldserver:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 105
+    steps:
+      - name: Checkout exact synced Core
+        uses: actions/checkout@v4
+        with:
+          repository: CosmicCuddle/azerothcore-wotlk
+          ref: 21ff1973bc75216f8a0d0f3d7731eb3e8894ff97
+          path: acore
+          persist-credentials: false
+
+      - name: Checkout exact synced Playerbots
+        uses: actions/checkout@v4
+        with:
+          repository: CosmicCuddle/mod-playerbots
+          ref: 3a9e39f1be9f988ce53f9d4f19636207ff25c4a9
+          path: acore/modules/mod-playerbots
+          persist-credentials: false
+
+      - name: Checkout paid IP API v2 DRAFT
+        uses: actions/checkout@v4
+        with:
+          repository: CosmicCuddle/mod-individual-progression
+          ref: b4c018b56eecde9730b9b8e392f76517c62311bb
+          path: acore/modules/mod-individual-progression
+          persist-credentials: false
+
+      - name: Checkout Character Services v2 consumer
+        uses: actions/checkout@v4
+        with:
+          repository: CosmicCuddle/mod-character-services
+          ref: ${{ github.sha }}
+          path: acore/modules/mod-character-services
+          persist-credentials: false
+
+      - name: Checkout exact synced Naxxramas-Core
+        uses: actions/checkout@v4
+        with:
+          repository: CosmicCuddle/Mod-Naxxramas-Core
+          ref: 80e9de1c39a6dc995188a80c31a5e785d0f2a6f9
+          path: acore/modules/mod-naxxramas-core
+          persist-credentials: false
+
+      - name: Confirm exact source tuple
+        run: |
+          set -euo pipefail
+          test "$(git -C acore rev-parse HEAD)" = "21ff1973bc75216f8a0d0f3d7731eb3e8894ff97"
+          test "$(git -C acore/modules/mod-playerbots rev-parse HEAD)" = "3a9e39f1be9f988ce53f9d4f19636207ff25c4a9"
+          test "$(git -C acore/modules/mod-individual-progression rev-parse HEAD)" = "b4c018b56eecde9730b9b8e392f76517c62311bb"
+          test "$(git -C acore/modules/mod-character-services rev-parse HEAD)" = "${{ github.sha }}"
+          test "$(git -C acore/modules/mod-naxxramas-core rev-parse HEAD)" = "80e9de1c39a6dc995188a80c31a5e785d0f2a6f9"
+
+      - name: Verify Character Services contracts
+        run: |
+          set -euo pipefail
+          module=acore/modules/mod-character-services
+          g++ -std=c++17 -Wall -Wextra -Werror "$module/tests/character_services_gate_policy.cpp" -o /tmp/cs_gate
+          /tmp/cs_gate
+          g++ -std=c++17 -Wall -Wextra -Werror "$module/tests/character_services_money_policy.cpp" -o /tmp/cs_money
+          /tmp/cs_money
+          python3 -B "$module/tests/test_paid_era_generic_tier_gate.py"
+          python3 -B "$module/tests/test_paid_expansion_v2_vendor.py"
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends             git cmake ninja-build g++ make pkg-config file             libmysqlclient-dev libssl-dev libbz2-dev             libreadline-dev libncurses-dev libboost-all-dev
+
+      - name: Configure full static scripts/modules
+        run: |
+          cmake -S acore -B acore-build -G Ninja             -DCMAKE_BUILD_TYPE=Release -DMODULES=static -DSCRIPTS=static             -DAPPS_BUILD=world-only -DTOOLS_BUILD=none             -DUSE_COREPCH=ON -DUSE_SCRIPTPCH=ON
+
+      - name: Build and link Worldserver only
+        run: cmake --build acore-build --target worldserver --parallel 2
+
+      - name: Record binary evidence
+        run: |
+          set -euo pipefail
+          binary="$(find acore-build -type f -name worldserver -print -quit)"
+          test -n "$binary"
+          test -s "$binary"
+          test -x "$binary"
+          file "$binary"
+          sha256sum "$binary"
+          echo "PASS: Character Services v2 vendor composed with paid IP API v2 and linked."
+          echo "No server startup, DB/config migration, payment, or production deployment."

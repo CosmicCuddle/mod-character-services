@@ -9,6 +9,7 @@
 #include "ScriptedGossip.h"
 #include "IndividualProgression.h"
 #include "CharacterServicesGatePolicy.h"
+#include "CharacterServicesMoneyPolicy.h"
 
 class CharacterServices : public CreatureScript
 {
@@ -38,6 +39,27 @@ class CharacterServices : public CreatureScript
 #endif
     }
 
+#if defined(COSMIC_IP_PAID_EXPANSION_API_VERSION) && COSMIC_IP_PAID_EXPANSION_API_VERSION >= 2
+    using ExpansionEra = IndividualProgressionExpansionPolicy::Era;
+    using ExpansionResult = IndividualProgressionExpansionPolicy::PurchaseResult;
+    using ExpansionView = IndividualProgressionPaidPurchaseState::View;
+
+    static bool GetExpansionCostCopper(ExpansionEra era, uint32& copper)
+    {
+      char const* key = era == ExpansionEra::Tbc
+        ? "CharacterServices.ExpansionUnlock.Cost.VanillaToTBC"
+        : "CharacterServices.ExpansionUnlock.Cost.TBCToWotLK";
+      uint32 const fallbackGold = era == ExpansionEra::Tbc ? 1000u : 3000u;
+      uint32 const gold = sConfigMgr->GetOption<uint32>(key, fallbackGold);
+      return CharacterServicesMoneyPolicy::TryGoldToCopper(gold, false, copper);
+    }
+
+    static char const* ExpansionDisplayName(ExpansionEra era)
+    {
+      return era == ExpansionEra::Tbc ? "The Burning Crusade" : "Wrath of the Lich King";
+    }
+#endif
+
     CharacterServices() : CreatureScript("character_services") { }
 
     bool OnGossipHello(Player* player, Creature* creature) override
@@ -63,6 +85,50 @@ class CharacterServices : public CreatureScript
         AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1, "|TInterface/Icons/inv_misc_grouplooking:50:50|tChange My Race", GOSSIP_SENDER_MAIN, 3, "Confirm Race Change.", GetServiceCost(player, 3), false);
       if (sConfigMgr->GetOption<bool>("CharacterServices.FactionChange.Enable", false))
         AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1, "|TInterface/Icons/inv_bannerpvp_03:50:50|tChange My Faction", GOSSIP_SENDER_MAIN, 4, "Confirm Faction Change.", GetServiceCost(player, 4), false);
+
+#if defined(COSMIC_IP_PAID_EXPANSION_API_VERSION) && COSMIC_IP_PAID_EXPANSION_API_VERSION >= 2
+      if (sConfigMgr->GetOption<bool>("CharacterServices.ExpansionUnlock.Enable", false) &&
+          sIndividualProgression->IsPaidExpansionActive())
+      {
+        bool unresolvedPurchase = false;
+        for (ExpansionEra era : {ExpansionEra::Tbc, ExpansionEra::Wrath})
+        {
+          ExpansionView const view = sIndividualProgression->GetPaidPurchaseState(player, era);
+          if (view == ExpansionView::Active)
+            continue;
+          if (view == ExpansionView::Pending || view == ExpansionView::Unconfirmed)
+          {
+            unresolvedPurchase = true;
+            continue;
+          }
+
+          uint32 copper = 0;
+          if (!GetExpansionCostCopper(era, copper))
+            continue;
+
+          ExpansionResult const result = sIndividualProgression->CanPurchaseExpansion(
+              player, static_cast<uint8>(era), copper);
+          if (result != ExpansionResult::Success && result != ExpansionResult::InsufficientFunds)
+            continue;
+
+          uint32 const action = era == ExpansionEra::Tbc ? 200u : 201u;
+          std::string const icon = era == ExpansionEra::Tbc
+            ? "Interface/Icons/achievement_dungeon_karazhan"
+            : "Interface/Icons/achievement_boss_kelthuzad_01";
+          AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1,
+              "|T" + icon + ":50:50|tUnlock " + ExpansionDisplayName(era),
+              GOSSIP_SENDER_MAIN, action,
+              "Submit " + std::string(ExpansionDisplayName(era)) + " passage for " +
+                  std::to_string(copper / 10000) +
+                  " gold. Access activates only after the payment is safely confirmed.",
+              0u, false);
+        }
+
+        if (unresolvedPurchase)
+          ChatHandler(player->GetSession()).PSendSysMessage(
+              "An expansion purchase is awaiting confirmation. Do not submit another purchase.");
+      }
+#endif
 
       // Add progression tier purchase option if enabled
       if (sConfigMgr->GetOption<bool>("CharacterServices.ProgressionTier.Enable", false))
@@ -108,16 +174,102 @@ class CharacterServices : public CreatureScript
       return true;
     }
 
-    bool OnGossipSelect(Player* player, Creature* /*creature*/, uint32 /*sender*/, uint32 action) override
+    bool OnGossipSelect(Player* player, Creature* /*creature*/, uint32 sender, uint32 action) override
     {
       if (!player || !player->GetSession())
           return false;
 
       ClearGossipMenuFor(player);
+      if (sender != GOSSIP_SENDER_MAIN ||
+          !sConfigMgr->GetOption<bool>("CharacterServices.Enable", false))
+      {
+        CloseGossipMenuFor(player);
+        return false;
+      }
 
-      // Handle progression tier purchases (action IDs 100+)
+#if defined(COSMIC_IP_PAID_EXPANSION_API_VERSION) && COSMIC_IP_PAID_EXPANSION_API_VERSION >= 2
+      if (action == 200 || action == 201)
+      {
+        if (!sConfigMgr->GetOption<bool>("CharacterServices.ExpansionUnlock.Enable", false) ||
+            !sIndividualProgression->IsPaidExpansionActive())
+        {
+          CloseGossipMenuFor(player);
+          return false;
+        }
+
+        ExpansionEra const era = action == 200 ? ExpansionEra::Tbc : ExpansionEra::Wrath;
+        ExpansionView const before = sIndividualProgression->GetPaidPurchaseState(player, era);
+        if (before == ExpansionView::Active)
+        {
+          ChatHandler(player->GetSession()).PSendSysMessage("You already own this expansion's access.");
+          CloseGossipMenuFor(player);
+          return false;
+        }
+        if (before == ExpansionView::Pending || before == ExpansionView::Unconfirmed)
+        {
+          ChatHandler(player->GetSession()).PSendSysMessage(
+              "This expansion purchase is already awaiting confirmation. Do not submit it again.");
+          CloseGossipMenuFor(player);
+          return false;
+        }
+
+        uint32 copper = 0;
+        if (!GetExpansionCostCopper(era, copper))
+        {
+          ChatHandler(player->GetSession()).PSendSysMessage(
+              "Expansion access is temporarily unavailable because its configured price is invalid.");
+          CloseGossipMenuFor(player);
+          return false;
+        }
+
+        ExpansionResult const result = sIndividualProgression->PurchaseExpansion(
+            player, static_cast<uint8>(era), copper);
+        if (result == ExpansionResult::Submitted)
+          ChatHandler(player->GetSession()).PSendSysMessage(
+              "Your {} purchase was submitted. Access will activate only after the payment is safely confirmed.",
+              ExpansionDisplayName(era));
+        else if (result == ExpansionResult::PurchasePending)
+          ChatHandler(player->GetSession()).PSendSysMessage(
+              "An expansion purchase is already awaiting confirmation. No additional gold was charged.");
+        else if (result == ExpansionResult::InsufficientFunds)
+          ChatHandler(player->GetSession()).PSendSysMessage("You do not have enough gold for this expansion.");
+        else if (result == ExpansionResult::AlreadyOwned)
+          ChatHandler(player->GetSession()).PSendSysMessage("You already own this expansion's access.");
+        else if (result == ExpansionResult::EntryUnavailable)
+          ChatHandler(player->GetSession()).PSendSysMessage(
+              "This expansion purchase is unavailable because its entitlement record or entry path is not ready. No purchase was submitted.");
+        else if (result == ExpansionResult::FeatureInactive)
+          ChatHandler(player->GetSession()).PSendSysMessage(
+              "The expansion purchase service is unavailable. No purchase was submitted.");
+        else if (result == ExpansionResult::BlockedByProgressionLimit)
+          ChatHandler(player->GetSession()).PSendSysMessage("This expansion is not yet available on the server.");
+        else if (result == ExpansionResult::NotApplicable)
+          ChatHandler(player->GetSession()).PSendSysMessage("This character does not use the paid expansion service.");
+        else if (result == ExpansionResult::InvalidRequest)
+          ChatHandler(player->GetSession()).PSendSysMessage("Invalid expansion purchase request.");
+        else
+          ChatHandler(player->GetSession()).PSendSysMessage(
+              "You have not yet completed the progression requirements for this expansion.");
+
+        CloseGossipMenuFor(player);
+        return result == ExpansionResult::Submitted;
+      }
+#else
+      if (action == 200 || action == 201)
+      {
+        CloseGossipMenuFor(player);
+        return false;
+      }
+#endif
+
+      // Handle progression tier purchases (action IDs 101..118 only).
       if (action >= 100)
       {
+        if (action < 101 || action > 118)
+        {
+          CloseGossipMenuFor(player);
+          return false;
+        }
         if (!sConfigMgr->GetOption<bool>("CharacterServices.ProgressionTier.Enable", false))
         {
           CloseGossipMenuFor(player);
@@ -233,7 +385,7 @@ class CharacterServices : public CreatureScript
       // When RequireAccountUnlock is true (default), cap purchases at the account's
       // highest achieved tier. When false, the only ceiling is MaxApplicableTier (below).
       uint8 accountMaxTier = requireAccountUnlock
-        ? sIndividualProgression->GetAccountProgression(player->GetSession()->GetAccountId())
+        ? AccountProgressionForTierService(player->GetSession()->GetAccountId())
         : PROGRESSION_WOTLK_TIER_5;
 
       // Cap the account's max tier by the configured maximum, if any

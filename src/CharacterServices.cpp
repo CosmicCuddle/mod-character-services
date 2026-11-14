@@ -63,7 +63,7 @@ class CharacterServices : public CreatureScript
         AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1, "|TInterface/Icons/inv_misc_grouplooking:50:50|tChange My Race", GOSSIP_SENDER_MAIN, 3, "Confirm Race Change.", GetServiceCost(player, 3), false);
       if (sConfigMgr->GetOption<bool>("CharacterServices.FactionChange.Enable", false))
         AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1, "|TInterface/Icons/inv_bannerpvp_03:50:50|tChange My Faction", GOSSIP_SENDER_MAIN, 4, "Confirm Faction Change.", GetServiceCost(player, 4), false);
-      
+
       // Add progression tier purchase option if enabled
       if (sConfigMgr->GetOption<bool>("CharacterServices.ProgressionTier.Enable", false))
       {
@@ -112,7 +112,7 @@ class CharacterServices : public CreatureScript
     {
       if (!player || !player->GetSession())
           return false;
-          
+
       ClearGossipMenuFor(player);
 
       // Handle progression tier purchases (action IDs 100+)

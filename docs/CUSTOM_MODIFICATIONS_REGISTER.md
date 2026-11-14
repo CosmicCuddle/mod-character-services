@@ -20,7 +20,7 @@ This register tracks CosmicCuddle-specific behavior in this repository. Entries 
 - **Intended behavior:** Offer TBC/Wrath passage only when IP says the character is eligible. Submit payment through IP exactly once. `Submitted` means pending durability, not success; Pending/Unconfirmed cannot be charged again; only `Active` is owned.
 - **Owning component:** Character Services Vezrath gossip/UI. Individual Progression owns debit, receipt, durability, entitlement and final activation.
 - **Affected files:** `src/CharacterServices.cpp`, `src/CharacterServicesMoneyPolicy.h`, distributed config, tests/workflows.
-- **Source refs:** Stacked DRAFT #79 over #78; designed against IP DRAFT #184 API v2 head `d325d081bc3310978b1383930b631bc8c4fad012`.
+- **Source refs:** Stacked DRAFT #79 over #78; designed against IP DRAFT #184 API v2 head `b4c018b56eecde9730b9b8e392f76517c62311bb`.
 - **Config/SQL/DBC/client dependencies:** `CharacterServices.ExpansionUnlock.Enable=0` by default. Historical draft prices are 1000g TBC / 3000g Wrath, but production prices are NOT yet owner-approved. No SQL/DBC/client patch.
 - **Known risks:** Requires compatible IP API v2; commissioning/missing receipt policy, injected DB-failure test, callback-confirmed phasing refresh and owner price decision remain release gates.
 - **Tests:** Fast source/policy/codestyle workflows pass where completed. A pinned full Worldserver link against IP API v2 is required and may still be running.

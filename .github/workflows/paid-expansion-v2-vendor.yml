@@ -1,0 +1,36 @@
+name: Paid expansion API v2 vendor
+
+on:
+  push:
+    branches: [feature/paid-expansion-v2-vendor-20261114]
+    paths:
+      - 'src/CharacterServices.cpp'
+      - 'src/CharacterServicesMoneyPolicy.h'
+      - 'conf/character_services.conf.dist'
+      - 'tests/character_services_money_policy.cpp'
+      - 'tests/test_paid_expansion_v2_vendor.py'
+      - '.github/workflows/paid-expansion-v2-vendor.yml'
+  pull_request:
+    paths:
+      - 'src/CharacterServices.cpp'
+      - 'src/CharacterServicesMoneyPolicy.h'
+      - 'conf/character_services.conf.dist'
+      - 'tests/character_services_money_policy.cpp'
+      - 'tests/test_paid_expansion_v2_vendor.py'
+      - '.github/workflows/paid-expansion-v2-vendor.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run money policy test
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror tests/character_services_money_policy.cpp -o /tmp/cs_money_test
+          /tmp/cs_money_test
+      - name: Run v2 vendor source contracts
+        run: python3 -B -m unittest tests.test_paid_expansion_v2_vendor

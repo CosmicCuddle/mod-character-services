@@ -78,6 +78,12 @@ CharacterServices.ProgressionTier.RequireAccountUnlock = 1
 #
 CharacterServices.ExpansionUnlock.Enable = 0
 
+# Paid expansion passage prices, in gold. These values remain inert while
+# CharacterServices.ExpansionUnlock.Enable = 0 or IP paid expansion is OFF.
+# The IP API owns the actual debit and durable entitlement transaction.
+CharacterServices.ExpansionUnlock.Cost.VanillaToTBC = 1000
+CharacterServices.ExpansionUnlock.Cost.TBCToWotLK = 3000
+
 #
 #    CharacterServices.DynamicCost.Enable
 #        Description: Enables scaling cost based on the player's level: (player level / 80) * cost
